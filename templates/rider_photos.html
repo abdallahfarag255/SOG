@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ driver_name }}</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; margin: 0; padding: 16px; max-width: 100%; overflow-x: hidden; }
+        .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        form { margin-bottom: 24px; }
+        .table-scroll { width: 100%; overflow-x: auto; margin-bottom: 20px; }
+        table { width: 100%; min-width: 460px; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: #f4f4f4; }
+        td input {
+            width: 90%;
+            padding: 6px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        button { padding: 10px 16px; cursor: pointer; font-size: 15px; }
+        .save-btn { background: #2e7d32; color: #fff; border: none; border-radius: 4px; width: 100%; }
+        input[type="file"] { max-width: 100%; }
+    </style>
+</head>
+<body>
+    <h1>{{ driver_name }}</h1>
+    <p style="margin-top:-10px; color:#666;">{{ rider_id }}</p>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('rider_photos_upload', rider_id=rider_id) }}" method="post" enctype="multipart/form-data">
+        <input type="hidden" name="driver_name" value="{{ driver_name }}">
+        <input type="hidden" name="phone" value="{{ phone }}">
+        <input type="file" name="images" accept="image/*" multiple required>
+        <button type="submit">رفع واستخراج البيانات</button>
+    </form>
+
+    <form action="{{ url_for('rider_stats_save', rider_id=rider_id) }}" method="post">
+        <input type="hidden" name="images" value="{{ images }}">
+        <input type="hidden" name="driver_name" value="{{ driver_name }}">
+        <input type="hidden" name="phone" value="{{ phone }}">
+        <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Complete Hours</th>
+                    <th>Complete Order</th>
+                    <th>Installments</th>
+                    <th>Wallet</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><input type="text" name="complete_hours" value="{{ stats.complete_hours }}"></td>
+                    <td><input type="text" name="complete_order" value="{{ stats.complete_order }}"></td>
+                    <td><input type="text" name="installments" value="{{ stats.installments }}"></td>
+                    <td><input type="text" name="wallet" value="{{ stats.wallet }}"></td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+        <button type="submit" class="save-btn">حفظ</button>
+    </form>
+</body>
+</html>

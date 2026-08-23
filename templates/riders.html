@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>الراكبين النشطين</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; width: 100%; margin: 0 auto; padding: 24px 32px; max-width: 100%; overflow-x: hidden; }
+        .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { width: 100%; min-width: 900px; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; white-space: nowrap; }
+        th { background: #f4f4f4; }
+
+        @media (max-width: 600px) {
+            body { padding: 12px; }
+            .day-nav a, .day-nav .day-label { padding: 8px 10px; font-size: 13px; }
+            .add-photo-btn { width: 36px; height: 36px; font-size: 18px; }
+        }
+        .add-photo-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #2e7d32;
+            color: #fff;
+            text-decoration: none;
+            font-size: 16px;
+            line-height: 1;
+            border: none;
+            cursor: pointer;
+        }
+        .add-photo-btn:hover { background: #1b5e20; }
+
+        .eq-positive { background: #f8d7da; }
+        .eq-negative { background: #d4edda; }
+
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .filter-bar input, .filter-bar select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .filter-bar input { flex: 1; min-width: 200px; }
+
+        .day-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            border: 1px solid #ddd;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #fff;
+        }
+        .day-nav a {
+            padding: 10px 18px;
+            text-decoration: none;
+            color: #333;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .day-nav a:hover { background: #f4f4f4; }
+        .day-nav .day-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-right: 1px solid #ddd;
+            border-left: 1px solid #ddd;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .today-pill {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: #fff;
+            width: 90%;
+            max-width: 900px;
+            max-height: 85vh;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            border-bottom: 1px solid #ddd;
+        }
+        .modal-close {
+            border: none;
+            background: #e53935;
+            color: #fff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+        }
+        .modal-box iframe { border: none; width: 100%; height: 260px; max-height: 75vh; }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('logout') }}" style="float:left; font-size: 13px; color:#555;">تسجيل الخروج</a>
+    <h1 style="text-align:center;">SOG Monitoring</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="day-nav">
+        <a href="{{ url_for('riders', date=next_date) }}">اليوم التالي</a>
+        <span class="day-label">
+            {{ selected_date_display }}
+            {% if is_today %}
+                <span class="today-pill">اليوم</span>
+            {% endif %}
+        </span>
+        <a href="{{ url_for('riders', date=prev_date) }}">اليوم السابق</a>
+    </div>
+
+    <p>العدد: <span id="visibleCount">{{ riders|length }}</span></p>
+
+    <div class="filter-bar">
+        <input type="text" id="searchInput" placeholder="بحث بالاسم أو ID..." oninput="filterRows()">
+        {% if is_today %}
+        <select id="zoneFilter" onchange="filterRows()">
+            <option value="">كل المناطق</option>
+            {% for z in zones %}
+            <option value="{{ z }}">{{ z }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+
+    {% if is_today %}
+    <div class="table-scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>ADD</th>
+                <th>Equation</th>
+                <th>Installments</th>
+                <th>Wallet</th>
+                <th>Complete Order</th>
+                <th>Complete Hours</th>
+                <th>Zone</th>
+                <th>Rent Remaining</th>
+                <th>State</th>
+                <th>Phone Number</th>
+                <th>Driver Name</th>
+                <th>ID Rider</th>
+            </tr>
+        </thead>
+        <tbody id="ridersBody">
+            {% for r in riders %}
+            <tr data-name="{{ r.driver_name|lower }}" data-id="{{ r.id_rider|lower }}" data-zone="{{ r.zone }}">
+                <td>
+                    <button type="button" class="add-photo-btn" title="إضافة صور" onclick="openPhotosModal('{{ r.id_rider }}', '{{ r.driver_name }}', '{{ r.phone }}')">+</button>
+                </td>
+                <td class="{% if r.equation_sign == 'positive' %}eq-positive{% elif r.equation_sign == 'negative' %}eq-negative{% endif %}">{{ r.equation }}</td>
+                <td>{{ r.installments }}</td>
+                <td>{{ r.wallet }}</td>
+                <td>{{ r.complete_order }}</td>
+                <td>{{ r.complete_hours }}</td>
+                <td>{{ r.zone }}</td>
+                <td>{{ r.rent_remaining }}</td>
+                <td>{{ r.state }}</td>
+                <td>{{ r.phone }}</td>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.id_rider }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="table-scroll">
+    <table style="min-width: 700px;">
+        <thead>
+            <tr>
+                <th>Equation</th>
+                <th>Installments</th>
+                <th>Wallet</th>
+                <th>Complete Order</th>
+                <th>Complete Hours</th>
+                <th>Phone Number</th>
+                <th>Driver Name</th>
+                <th>ID Rider</th>
+            </tr>
+        </thead>
+        <tbody id="ridersBody">
+            {% for r in riders %}
+            <tr data-name="{{ r.driver_name|lower }}" data-id="{{ r.id_rider|lower }}">
+                <td class="{% if r.equation_sign == 'positive' %}eq-positive{% elif r.equation_sign == 'negative' %}eq-negative{% endif %}">{{ r.equation }}</td>
+                <td>{{ r.installments }}</td>
+                <td>{{ r.wallet }}</td>
+                <td>{{ r.complete_order }}</td>
+                <td>{{ r.complete_hours }}</td>
+                <td>{{ r.phone }}</td>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.id_rider }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% endif %}
+
+    <div class="modal-overlay" id="photosModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <span>إضافة صور</span>
+                <button type="button" class="modal-close" onclick="closePhotosModal()">&times;</button>
+            </div>
+            <iframe id="photosFrame" src="" onload="resizePhotosFrame()"></iframe>
+        </div>
+    </div>
+
+    <script>
+        function openPhotosModal(riderId, driverName, phone) {
+            var base = "{{ url_for('rider_photos', rider_id='RIDER_ID') }}";
+            var url = base.replace('RIDER_ID', riderId)
+                + '?driver_name=' + encodeURIComponent(driverName)
+                + '&phone=' + encodeURIComponent(phone);
+            document.getElementById('photosFrame').src = url;
+            document.getElementById('photosModal').classList.add('open');
+        }
+        function closePhotosModal() {
+            document.getElementById('photosModal').classList.remove('open');
+            document.getElementById('photosFrame').src = '';
+            location.reload();
+        }
+
+        function resizePhotosFrame() {
+            var frame = document.getElementById('photosFrame');
+            try {
+                var height = frame.contentWindow.document.body.scrollHeight;
+                frame.style.height = Math.min(height + 20, window.innerHeight * 0.75) + 'px';
+            } catch (e) {
+                /* cross-origin or not loaded yet, keep default height */
+            }
+        }
+
+        function filterRows() {
+            var search = document.getElementById('searchInput').value.trim().toLowerCase();
+            var zoneEl = document.getElementById('zoneFilter');
+            var zone = zoneEl ? zoneEl.value : '';
+            var rows = document.querySelectorAll('#ridersBody tr');
+            var visible = 0;
+
+            rows.forEach(function (row) {
+                var matchesSearch = !search
+                    || row.dataset.name.indexOf(search) !== -1
+                    || row.dataset.id.indexOf(search) !== -1;
+                var matchesZone = !zone || row.dataset.zone === zone;
+                var show = matchesSearch && matchesZone;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+
+            document.getElementById('visibleCount').textContent = visible;
+        }
+
+        {% if is_today %}
+        setInterval(function () {
+            var modal = document.getElementById('photosModal');
+            if (!modal.classList.contains('open')) {
+                location.reload();
+            }
+        }, 5 * 60 * 1000);
+        {% endif %}
+    </script>
+</body>
+</html>

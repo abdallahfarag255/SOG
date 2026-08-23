@@ -1,0 +1,9 @@
+.env
+service_account.json
+uploads/*
+!uploads/.gitkeep
+__pycache__/
+*.pyc
+venv/
+flask_out.log
+flask_err.log
