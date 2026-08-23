@@ -15,6 +15,7 @@ class DigitRecognizer:
     SEPARATOR_CLASSES = ["THOUSANDS_SEP", "DECIMAL_SEP"]
     ALL_CLASSES = DIGIT_CLASSES + SEPARATOR_CLASSES
     EARNED_LABEL_TOKENS = ["إجمالي", "المبالغ", "المكتسبة"]
+    MAX_SOURCE_DIMENSION = 1600
 
     def __init__(self, template_repository, tesseract_cmd: str = None, lang: str = "ara+eng"):
         if tesseract_cmd:
@@ -66,6 +67,11 @@ class DigitRecognizer:
         image = Image.open(image_path)
         gray = ImageOps.grayscale(image)
         w, h = gray.size
+        longest = max(w, h)
+        if longest > self.MAX_SOURCE_DIMENSION:
+            factor = self.MAX_SOURCE_DIMENSION / longest
+            w, h = max(1, round(w * factor)), max(1, round(h * factor))
+            gray = gray.resize((w, h), Image.LANCZOS)
         upscaled = gray.resize((w * scale, h * scale), Image.LANCZOS)
 
         data = pytesseract.image_to_data(upscaled, lang=self._lang, config="--psm 11 --oem 1", output_type=Output.DICT)

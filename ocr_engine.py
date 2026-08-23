@@ -5,11 +5,18 @@ from PIL import Image, ImageOps
 
 
 class ImagePreprocessor:
+    MAX_SOURCE_DIMENSION = 1600
+
     @staticmethod
     def grayscale_upscale(image_path: str, scale: int) -> Image.Image:
         image = Image.open(image_path)
         gray = ImageOps.grayscale(image)
         w, h = gray.size
+        longest = max(w, h)
+        if longest > ImagePreprocessor.MAX_SOURCE_DIMENSION:
+            factor = ImagePreprocessor.MAX_SOURCE_DIMENSION / longest
+            w, h = max(1, round(w * factor)), max(1, round(h * factor))
+            gray = gray.resize((w, h), Image.LANCZOS)
         return gray.resize((w * scale, h * scale), Image.LANCZOS)
 
 
