@@ -15,7 +15,7 @@ class DigitRecognizer:
     SEPARATOR_CLASSES = ["THOUSANDS_SEP", "DECIMAL_SEP"]
     ALL_CLASSES = DIGIT_CLASSES + SEPARATOR_CLASSES
     EARNED_LABEL_TOKENS = ["إجمالي", "المبالغ", "المكتسبة"]
-    MAX_SOURCE_DIMENSION = 1600
+    MAX_SOURCE_DIMENSION = 1100
 
     def __init__(self, template_repository, tesseract_cmd: str = None, lang: str = "ara+eng"):
         if tesseract_cmd:
