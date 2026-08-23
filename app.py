@@ -1,11 +1,12 @@
 import json
 import os
+import threading
 import uuid
 from datetime import date, timedelta
 from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
 load_dotenv()
@@ -54,6 +55,9 @@ auth_service = AuthService(user_repo)
 app = Flask(__name__)
 app.secret_key = config.flask_secret_key
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+_ocr_jobs = {}
+_ocr_jobs_lock = threading.Lock()
 
 
 def login_required(view):
@@ -150,7 +154,19 @@ def rider_photos(rider_id):
         phone=phone,
         stats=display_stats,
         images=images,
+        job_id=request.args.get("job_id", ""),
     )
+
+
+def _run_ocr_job(job_id, rider_id, saved_images):
+    try:
+        merged_stats, saved_count, errors = rider_service.process_uploaded_photos(rider_id, saved_images)
+        result = {"status": "done", "stats": merged_stats, "saved_count": saved_count, "errors": errors}
+    except Exception as exc:
+        result = {"status": "error", "errors": [f"فشلت معالجة الصور: {exc}"]}
+
+    with _ocr_jobs_lock:
+        _ocr_jobs[job_id] = result
 
 
 @app.route("/riders/<rider_id>/photos/upload", methods=["POST"])
@@ -175,12 +191,10 @@ def rider_photos_upload(rider_id):
         file.save(filepath)
         saved_images.append((unique_name, filepath, file.filename))
 
-    merged_stats, saved_count, errors = rider_service.process_uploaded_photos(rider_id, saved_images)
-
-    for error in errors:
-        flash(error)
-    if saved_count:
-        flash(f"تم استخراج البيانات من {saved_count} صورة، راجعها واضغط حفظ")
+    job_id = uuid.uuid4().hex
+    with _ocr_jobs_lock:
+        _ocr_jobs[job_id] = {"status": "processing"}
+    threading.Thread(target=_run_ocr_job, args=(job_id, rider_id, saved_images), daemon=True).start()
 
     saved_filenames = [img[0] for img in saved_images]
     return redirect(url_for(
@@ -189,8 +203,18 @@ def rider_photos_upload(rider_id):
         images=",".join(saved_filenames),
         driver_name=driver_name,
         phone=phone,
-        **merged_stats,
+        job_id=job_id,
     ))
+
+
+@app.route("/riders/<rider_id>/photos/status/<job_id>")
+@login_required
+def rider_photos_status(rider_id, job_id):
+    with _ocr_jobs_lock:
+        job = _ocr_jobs.get(job_id, {"status": "not_found"})
+        if job.get("status") in ("done", "error"):
+            del _ocr_jobs[job_id]
+    return jsonify(job)
 
 
 @app.route("/riders/<rider_id>/stats/save", methods=["POST"])

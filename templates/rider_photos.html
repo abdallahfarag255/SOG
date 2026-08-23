@@ -8,6 +8,7 @@
         * { box-sizing: border-box; }
         body { font-family: Tahoma, Arial, sans-serif; margin: 0; padding: 16px; max-width: 100%; overflow-x: hidden; }
         .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .processing { background: #e3f2fd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
         form { margin-bottom: 24px; }
         .table-scroll { width: 100%; overflow-x: auto; margin-bottom: 20px; }
         table { width: 100%; min-width: 460px; border-collapse: collapse; }
@@ -35,6 +36,10 @@
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    {% if job_id %}
+    <div class="processing" id="ocr-processing">جاري تحليل الصور، ده ممكن ياخد دقيقة أو أكتر... من فضلك ماتقفلش الصفحة</div>
+    {% endif %}
 
     <form action="{{ url_for('rider_photos_upload', rider_id=rider_id) }}" method="post" enctype="multipart/form-data">
         <input type="hidden" name="driver_name" value="{{ driver_name }}">
@@ -69,5 +74,38 @@
         </div>
         <button type="submit" class="save-btn">حفظ</button>
     </form>
+
+    {% if job_id %}
+    <script>
+        (function poll() {
+            fetch("{{ url_for('rider_photos_status', rider_id=rider_id, job_id=job_id) }}")
+                .then(function (res) { return res.json(); })
+                .then(function (job) {
+                    if (job.status === "processing") {
+                        setTimeout(poll, 3000);
+                        return;
+                    }
+                    var banner = document.getElementById("ocr-processing");
+                    if (job.status === "done") {
+                        var stats = job.stats || {};
+                        ["complete_hours", "complete_order", "installments", "wallet"].forEach(function (key) {
+                            if (stats[key]) {
+                                document.querySelector('input[name="' + key + '"]').value = stats[key];
+                            }
+                        });
+                        if (banner) {
+                            banner.textContent = job.saved_count
+                                ? "تم استخراج البيانات من " + job.saved_count + " صورة، راجعها واضغط حفظ"
+                                : "خلصت المعالجة";
+                        }
+                    } else if (banner) {
+                        banner.textContent = "حصل خطأ أثناء تحليل الصور";
+                    }
+                    (job.errors || []).forEach(function (err) { console.error(err); });
+                })
+                .catch(function () { setTimeout(poll, 3000); });
+        })();
+    </script>
+    {% endif %}
 </body>
 </html>
