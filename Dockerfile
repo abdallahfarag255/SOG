@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TESSERACT_CMD=/usr/bin/tesseract
+ENV OMP_THREAD_LIMIT=1
 
 WORKDIR /app
 
