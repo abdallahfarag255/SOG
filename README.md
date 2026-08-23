@@ -80,7 +80,28 @@ python app.py
 
 افتح المتصفح على: http://127.0.0.1:5000 (بيوديك تلقائي لـ `/riders`).
 
-## 7. النشر على Render (عشان يشتغل على الموبايل واللاب من أي مكان)
+## 7. تشغيله كـ Desktop App (بدون سيرفر أونلاين)
+
+بدل النشر على استضافة سحابية، تقدر تشغّل السيستم كبرنامج desktop عادي على جهازك — بيستخدم معالج جهازك الكامل (أسرع بكتير من أي خطة مجانية أونلاين)، وبيفضل متصل بنفس Google Sheet وSupabase زي أي وضع تاني.
+
+### تشغيل مباشر (للتجربة)
+
+```powershell
+python desktop.py
+```
+
+هتفتحلك نافذة desktop عادية باسم "SOG Monitoring".
+
+### عمل ملف .exe مستقل
+
+```powershell
+pip install pyinstaller
+pyinstaller --onefile --windowed --add-data "templates;templates" --name "SOG Monitoring" desktop.py
+```
+
+الناتج هيكون في `dist\SOG Monitoring.exe`. **مهم:** لازم تحط ملفات `.env` و `service_account.json` في نفس المجلد جنب الملف التنفيذي عشان يشتغل، لأنهم مش متضمّنين جوه الـ exe (أسرار وميتنقلوش).
+
+## 8. النشر على Render (اختياري، للوصول من الموبايل من أي مكان) (عشان يشتغل على الموبايل واللاب من أي مكان)
 
 Vercel مش مناسب للسيستم ده لأنه مش بيدعم تشغيل Tesseract. هننشر على **Render** باستخدام Docker (الملف `Dockerfile` جاهز في المشروع).
 

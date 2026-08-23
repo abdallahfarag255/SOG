@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import threading
 import uuid
 from datetime import date, timedelta
@@ -9,7 +10,10 @@ from dotenv import load_dotenv
 from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
 from werkzeug.utils import secure_filename
 
-load_dotenv()
+BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(__file__)
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 from auth_service import AuthService
 from config import Config
@@ -23,9 +27,6 @@ from supabase_repository import (
     RiderStatsRepository,
     UserRepository,
 )
-
-BASE_DIR = os.path.dirname(__file__)
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
 config = Config()
 
@@ -52,7 +53,10 @@ rider_service = RiderService(
 )
 auth_service = AuthService(user_repo)
 
-app = Flask(__name__)
+if getattr(sys, "frozen", False):
+    app = Flask(__name__, template_folder=os.path.join(sys._MEIPASS, "templates"))
+else:
+    app = Flask(__name__)
 app.secret_key = config.flask_secret_key
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 

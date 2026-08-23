@@ -3,7 +3,7 @@ from PIL import Image, ImageOps
 
 
 class ImagePreprocessor:
-    MAX_SOURCE_DIMENSION = 900
+    MAX_SOURCE_DIMENSION = 1600
 
     @staticmethod
     def grayscale_upscale(image_path: str, scale: int) -> Image.Image:
@@ -19,7 +19,7 @@ class ImagePreprocessor:
 
 
 class OCREngine:
-    CONFIGS = [(2, 11)]
+    CONFIGS = [(2, 6), (3, 11)]
 
     def __init__(self, tesseract_cmd: str = None, lang: str = "ara+eng"):
         if tesseract_cmd:

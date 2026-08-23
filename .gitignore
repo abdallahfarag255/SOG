@@ -8,3 +8,10 @@ venv/
 flask_out.log
 flask_err.log
 .claude/
+build/
+dist/
+*.spec
+desktop_out.log
+desktop_err.log
+dist_out.log
+dist_err.log
