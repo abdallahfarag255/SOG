@@ -132,7 +132,11 @@
     </style>
 </head>
 <body>
-    <a href="{{ url_for('logout') }}" style="float:left; font-size: 13px; color:#555;">تسجيل الخروج</a>
+    <div style="float:left; font-size: 13px; display:flex; gap:14px;">
+        <a href="{{ url_for('lecture_new') }}" style="color:#2e7d32;">إضافة محاضرة</a>
+        <a href="{{ url_for('lecture_records') }}" style="color:#555;">سجلات المحاضرات</a>
+        <a href="{{ url_for('logout') }}" style="color:#555;">تسجيل الخروج</a>
+    </div>
     <h1 style="text-align:center;">SOG Monitoring</h1>
 
     {% with messages = get_flashed_messages() %}

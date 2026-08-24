@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from supabase import create_client
 
@@ -68,6 +68,50 @@ class DigitTemplateRepository(SupabaseRepository):
 
     def delete(self, template_id: str) -> None:
         self._get_client().table(self.TABLE_NAME).delete().eq("id", template_id).execute()
+
+
+class LectureRepository(SupabaseRepository):
+    LECTURES_TABLE = "lectures"
+    ATTENDEES_TABLE = "lecture_attendees"
+
+    def create(self, lecture_date: str, created_by: str, attendees: list) -> dict:
+        response = (
+            self._get_client().table(self.LECTURES_TABLE)
+            .insert({"lecture_date": lecture_date, "created_by": created_by})
+            .execute()
+        )
+        lecture = response.data[0]
+
+        rows = [{"lecture_id": lecture["id"], "name": name, "zone": zone} for name, zone in attendees if name]
+        if rows:
+            self._get_client().table(self.ATTENDEES_TABLE).insert(rows).execute()
+
+        return lecture
+
+    def get_all_with_attendees(self) -> list:
+        lectures = (
+            self._get_client().table(self.LECTURES_TABLE)
+            .select("*")
+            .order("lecture_date", desc=True)
+            .execute()
+        ).data
+        attendees = self._get_client().table(self.ATTENDEES_TABLE).select("*").order("name").execute().data
+
+        attendees_by_lecture = {}
+        for attendee in attendees:
+            attendees_by_lecture.setdefault(attendee["lecture_id"], []).append(attendee)
+
+        for lecture in lectures:
+            lecture["attendees"] = attendees_by_lecture.get(lecture["id"], [])
+        return lectures
+
+    def confirm_attendance(self, attendee_id: str) -> None:
+        (
+            self._get_client().table(self.ATTENDEES_TABLE)
+            .update({"attended": True, "confirmed_at": datetime.now(timezone.utc).isoformat()})
+            .eq("id", attendee_id)
+            .execute()
+        )
 
 
 class RiderStatsRepository(SupabaseRepository):

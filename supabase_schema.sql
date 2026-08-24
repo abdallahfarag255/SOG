@@ -37,3 +37,20 @@ create table if not exists digit_templates (
     created_at timestamptz not null default now()
 );
 create index if not exists digit_templates_label_idx on digit_templates (label);
+
+create table if not exists lectures (
+    id uuid primary key default gen_random_uuid(),
+    lecture_date date not null,
+    created_by text not null,
+    created_at timestamptz not null default now()
+);
+
+create table if not exists lecture_attendees (
+    id uuid primary key default gen_random_uuid(),
+    lecture_id uuid not null references lectures(id) on delete cascade,
+    name text not null,
+    zone text,
+    attended boolean not null default false,
+    confirmed_at timestamptz
+);
+create index if not exists lecture_attendees_lecture_id_idx on lecture_attendees (lecture_id);

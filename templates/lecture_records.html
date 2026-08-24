@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>سجلات المحاضرات</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; margin: 0; padding: 16px; max-width: 900px; margin-inline: auto; }
+        .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .back-link { display: inline-block; margin-bottom: 10px; color: #555; font-size: 13px; }
+        .lecture-card {
+            border: 1px solid #ddd; border-radius: 8px; padding: 14px; margin-bottom: 16px;
+        }
+        .lecture-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px; flex-wrap: wrap; gap: 6px;
+        }
+        .lecture-header h2 { margin: 0; font-size: 17px; }
+        .created-by { color: #777; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #eee; padding: 8px; text-align: center; }
+        th { background: #f4f4f4; }
+        .status-pending { color: #b26a00; }
+        .status-attended { color: #2e7d32; font-weight: bold; }
+        .confirm-btn {
+            background: #2e7d32; color: #fff; border: none; border-radius: 6px;
+            padding: 6px 12px; cursor: pointer; font-size: 13px;
+        }
+        .empty { color: #777; text-align: center; padding: 20px; }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('riders') }}" class="back-link">&rarr; رجوع</a>
+    <h1>سجلات المحاضرات</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if not lectures %}
+        <p class="empty">مفيش محاضرات متسجلة لسه.</p>
+    {% endif %}
+
+    {% for lecture in lectures %}
+    <div class="lecture-card">
+        <div class="lecture-header">
+            <h2>{{ lecture.lecture_date }}</h2>
+            <span class="created-by">أضافها: {{ lecture.created_by }}</span>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>Zone</th>
+                    <th>الحالة</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attendee in lecture.attendees %}
+                <tr>
+                    <td>{{ attendee.name }}</td>
+                    <td>{{ attendee.zone or '' }}</td>
+                    <td>
+                        {% if attendee.attended %}
+                            <span class="status-attended">حضر</span>
+                        {% else %}
+                            <span class="status-pending">لسه ماحضرش</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not attendee.attended %}
+                        <form method="post" action="{{ url_for('lecture_attendee_confirm', attendee_id=attendee.id) }}">
+                            <button type="submit" class="confirm-btn">تأكيد الحضور</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endfor %}
+</body>
+</html>

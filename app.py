@@ -25,6 +25,7 @@ from sheets_repository import GoogleSheetsRepository
 from supabase_repository import (
     DigitTemplateRepository,
     ExtractedImageRepository,
+    LectureRepository,
     RiderStatsRepository,
     UserRepository,
 )
@@ -40,6 +41,7 @@ stats_repo = RiderStatsRepository(config.supabase_url, config.supabase_key)
 image_repo = ExtractedImageRepository(config.supabase_url, config.supabase_key)
 user_repo = UserRepository(config.supabase_url, config.supabase_key)
 digit_template_repo = DigitTemplateRepository(config.supabase_url, config.supabase_key)
+lecture_repo = LectureRepository(config.supabase_url, config.supabase_key)
 ocr_engine = OCREngine(tesseract_cmd=config.tesseract_cmd)
 digit_recognizer = DigitRecognizer(template_repository=digit_template_repo, tesseract_cmd=config.tesseract_cmd)
 
@@ -80,6 +82,7 @@ def login():
         password = request.form.get("password", "")
         if auth_service.verify(username, password):
             session["logged_in"] = True
+            session["username"] = username
             return redirect(request.args.get("next") or url_for("riders"))
         error = "اسم المستخدم أو كلمة السر غير صحيحة"
     return render_template("login.html", error=error)
@@ -231,6 +234,52 @@ def rider_stats_save(rider_id):
         flash(f"فشل الحفظ: {exc}")
 
     return redirect(url_for("rider_photos", rider_id=rider_id))
+
+
+@app.route("/lectures/new", methods=["GET", "POST"])
+@login_required
+def lecture_new():
+    if request.method == "POST":
+        lecture_date = request.form.get("lecture_date", "")
+        names = request.form.getlist("attendee_name")
+        zones = request.form.getlist("attendee_zone")
+        attendees = list(zip(names, zones))
+
+        if not lecture_date or not any(name.strip() for name in names):
+            flash("لازم تختار تاريخ وتضيف اسم واحد على الأقل")
+            return redirect(url_for("lecture_new"))
+
+        try:
+            lecture_repo.create(lecture_date, session.get("username", ""), attendees)
+            flash("تم حفظ المحاضرة بنجاح")
+            return redirect(url_for("lecture_records"))
+        except Exception as exc:
+            flash(f"فشل حفظ المحاضرة: {exc}")
+
+    return render_template("lecture_new.html")
+
+
+@app.route("/lectures")
+@login_required
+def lecture_records():
+    try:
+        lectures = lecture_repo.get_all_with_attendees()
+    except Exception as exc:
+        lectures = []
+        flash(f"تعذر تحميل سجلات المحاضرات: {exc}")
+
+    return render_template("lecture_records.html", lectures=lectures)
+
+
+@app.route("/lectures/attendees/<attendee_id>/confirm", methods=["POST"])
+@login_required
+def lecture_attendee_confirm(attendee_id):
+    try:
+        lecture_repo.confirm_attendance(attendee_id)
+    except Exception as exc:
+        flash(f"فشل تأكيد الحضور: {exc}")
+
+    return redirect(url_for("lecture_records"))
 
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
