@@ -14,8 +14,9 @@ ocr_engine.py            # OCREngine, ImagePreprocessor — استخراج ال�
 stats_parser.py          # RiderStatsParser — استخراج الأرقام من النص
 digit_recognizer.py      # DigitRecognizer — تعرّف ذاتي على أرقام عربية بخط مخصص
 rider_service.py         # RiderService — طبقة الأعمال اللي بتجمع كل حاجة فوق
+ocr_job_store.py         # OCRJobStore — تتبع مهام الـ OCR اللي بتشتغل في الخلفية
 app.py                    # Flask routes (طبقة تحكم رفيعة بس)
-desktop.py                # نقطة تشغيل التطبيق كـ Desktop App (pywebview + waitress)
+desktop.py                # DesktopApp — نقطة تشغيل التطبيق كـ Desktop App (pywebview + waitress)
 ```
 
 ## 1. تثبيت المتطلبات
