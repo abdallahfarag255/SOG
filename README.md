@@ -15,6 +15,7 @@ stats_parser.py          # RiderStatsParser — استخراج الأرقام م
 digit_recognizer.py      # DigitRecognizer — تعرّف ذاتي على أرقام عربية بخط مخصص
 rider_service.py         # RiderService — طبقة الأعمال اللي بتجمع كل حاجة فوق
 app.py                    # Flask routes (طبقة تحكم رفيعة بس)
+desktop.py                # نقطة تشغيل التطبيق كـ Desktop App (pywebview + waitress)
 ```
 
 ## 1. تثبيت المتطلبات
@@ -72,17 +73,9 @@ copy .env.example .env
 
 اختياري: `SHEETS_CACHE_TTL_SECONDS` (افتراضي 60) — مدة تخزين نتيجة قراءة الشيت مؤقتًا قبل ما يعيد القراءة تاني، عشان يقلل زمن الاستجابة.
 
-## 6. تشغيل السيستم
+## 6. تشغيل السيستم (Desktop App)
 
-```powershell
-python app.py
-```
-
-افتح المتصفح على: http://127.0.0.1:5000 (بيوديك تلقائي لـ `/riders`).
-
-## 7. تشغيله كـ Desktop App (بدون سيرفر أونلاين)
-
-بدل النشر على استضافة سحابية، تقدر تشغّل السيستم كبرنامج desktop عادي على جهازك — بيستخدم معالج جهازك الكامل (أسرع بكتير من أي خطة مجانية أونلاين)، وبيفضل متصل بنفس Google Sheet وSupabase زي أي وضع تاني.
+السيستم بيشتغل كبرنامج desktop عادي على جهازك — بيستخدم معالج جهازك الكامل، وبيفضل متصل بنفس Google Sheet وSupabase.
 
 ### تشغيل مباشر (للتجربة)
 
@@ -100,40 +93,6 @@ pyinstaller --onefile --windowed --add-data "templates;templates" --name "SOG Mo
 ```
 
 الناتج هيكون في `dist\SOG Monitoring.exe`. **مهم:** لازم تحط ملفات `.env` و `service_account.json` في نفس المجلد جنب الملف التنفيذي عشان يشتغل، لأنهم مش متضمّنين جوه الـ exe (أسرار وميتنقلوش).
-
-## 8. النشر على Render (اختياري، للوصول من الموبايل من أي مكان) (عشان يشتغل على الموبايل واللاب من أي مكان)
-
-Vercel مش مناسب للسيستم ده لأنه مش بيدعم تشغيل Tesseract. هننشر على **Render** باستخدام Docker (الملف `Dockerfile` جاهز في المشروع).
-
-### الخطوات
-
-1. **ثبّت Git** لو مش متثبت: https://git-scm.com/downloads
-2. اعمل حساب على [GitHub](https://github.com) لو مالكش، واعمل repository جديد (private).
-3. من مجلد المشروع:
-   ```powershell
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin <رابط الـ repo بتاعك>
-   git push -u origin main
-   ```
-   (ملفات `.env` و `service_account.json` متسجلاش لأنهم في `.gitignore` — كويس، دول أسرار)
-4. اعمل حساب على [Render](https://render.com) وسجّل دخول بـ GitHub.
-5. من الداشبورد: **New > Web Service** واختار الـ repo بتاعك.
-6. Render هياكتشف الـ `Dockerfile` أوتوماتيك (اختار Environment: **Docker**).
-7. في **Environment Variables** ضيف:
-   - `GOOGLE_SERVICE_ACCOUNT_JSON` = **افتح ملف `service_account.json` والصق محتواه كامل كسطر واحد**
-   - `GOOGLE_SHEET_ID`
-   - `SUPABASE_URL`
-   - `SUPABASE_KEY`
-   - `FLASK_SECRET_KEY` (أي نص عشوائي طويل)
-   - `SHEETS_CACHE_TTL_SECONDS` = `60` (اختياري)
-8. دوس **Create Web Service** — Render هيبني ويشغّل السيستم، وهيديك رابط زي `https://your-app.onrender.com` يشتغل من أي جهاز (موبايل أو لابتوب) من غير أي إعدادات شبكة زيادة.
-
-### ملاحظة مهمة
-
-مجلد `uploads/` (صور الرفع) بيتصفّر مع كل عملية نشر (deploy) جديدة على الخطة المجانية في Render، لأن التخزين مؤقت مش دائم. أما الأرقام اللي اتعلمها النظام (digit templates) فمحفوظة بشكل دائم في جدول `digit_templates` بـ Supabase، فمش بتضيع مع أي deploy جديد.
 
 ## الميزات الأساسية
 
