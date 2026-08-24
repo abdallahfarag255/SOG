@@ -150,6 +150,12 @@ class RiderService:
         except Exception:
             pass
 
+    def learn_from_images(self, image_filenames: list, installments: str) -> None:
+        if not installments or not image_filenames:
+            return
+        with ThreadPoolExecutor(max_workers=len(image_filenames)) as executor:
+            list(executor.map(lambda f: self._learn_from_image(f, installments), image_filenames))
+
     def save_stats(self, rider_id: str, complete_hours: str, complete_order: str,
                    installments: str, wallet: str, image_filenames: list,
                    driver_name: str = "", phone: str = "") -> None:
@@ -168,7 +174,3 @@ class RiderService:
             phone=phone,
         )
         self._stats_repo.upsert(stats)
-
-        if installments and image_filenames:
-            with ThreadPoolExecutor(max_workers=len(image_filenames)) as executor:
-                list(executor.map(lambda f: self._learn_from_image(f, installments), image_filenames))

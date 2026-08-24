@@ -238,6 +238,9 @@ def rider_stats_save(rider_id):
             images, driver_name, phone,
         )
         flash("تم الحفظ بنجاح")
+        threading.Thread(
+            target=rider_service.learn_from_images, args=(images, installments), daemon=True
+        ).start()
     except Exception as exc:
         flash(f"فشل الحفظ: {exc}")
 
