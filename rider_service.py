@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import date
 
@@ -94,15 +95,19 @@ class RiderService:
         return self._stats_repo.get_for_rider_today(rider_id)
 
     def _analyze_image(self, filepath: str) -> tuple:
-        try:
-            variants, error = self._ocr_engine.extract_text_variants(filepath), None
-        except Exception as exc:
-            variants, error = None, exc
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            variants_future = executor.submit(self._ocr_engine.extract_text_variants, filepath)
+            recognized_future = executor.submit(self._digit_recognizer.recognize_earned_amount, filepath)
 
-        try:
-            recognized = self._digit_recognizer.recognize_earned_amount(filepath)
-        except Exception:
-            recognized = ""
+            try:
+                variants, error = variants_future.result(), None
+            except Exception as exc:
+                variants, error = None, exc
+
+            try:
+                recognized = recognized_future.result()
+            except Exception:
+                recognized = ""
 
         return variants, recognized, error
 
@@ -110,7 +115,8 @@ class RiderService:
         """saved_images: list of (unique_name, filepath, original_name). Returns (merged_stats dict, saved_count, errors list)."""
         from stats_parser import RiderStatsParser
 
-        analysis_results = [self._analyze_image(img[1]) for img in saved_images]
+        with ThreadPoolExecutor(max_workers=max(1, len(saved_images))) as executor:
+            analysis_results = list(executor.map(self._analyze_image, [img[1] for img in saved_images]))
 
         merged_stats = {"complete_hours": "", "complete_order": "", "installments": "", "wallet": ""}
         saved_count = 0
@@ -164,5 +170,5 @@ class RiderService:
         self._stats_repo.upsert(stats)
 
         if installments and image_filenames:
-            for f in image_filenames:
-                self._learn_from_image(f, installments)
+            with ThreadPoolExecutor(max_workers=len(image_filenames)) as executor:
+                list(executor.map(lambda f: self._learn_from_image(f, installments), image_filenames))

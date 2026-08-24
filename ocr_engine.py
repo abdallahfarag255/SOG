@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import pytesseract
 from PIL import Image, ImageOps
 
@@ -31,4 +33,6 @@ class OCREngine:
         return pytesseract.image_to_string(image, lang=self._lang, config=f"--psm {psm} --oem 1").strip()
 
     def extract_text_variants(self, image_path: str) -> list:
-        return [self._run(image_path, scale, psm) for scale, psm in self.CONFIGS]
+        with ThreadPoolExecutor(max_workers=len(self.CONFIGS)) as executor:
+            futures = [executor.submit(self._run, image_path, scale, psm) for scale, psm in self.CONFIGS]
+            return [f.result() for f in futures]
