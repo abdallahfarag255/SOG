@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import threading
@@ -18,7 +17,9 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 from auth_service import AuthService
 from config import Config
 from digit_recognizer import DigitRecognizer
+from models import ImageAnalysis
 from ocr_engine import OCREngine
+from ocr_job_store import OCRJobStore
 from rider_service import ArabicDateFormatter, ImageUploadValidator, RiderService
 from sheets_repository import GoogleSheetsRepository
 from supabase_repository import (
@@ -34,7 +35,6 @@ sheets_repo = GoogleSheetsRepository(
     sheet_id=config.google_sheet_id,
     cache_ttl_seconds=config.sheets_cache_ttl_seconds,
     service_account_file=config.google_service_account_file,
-    service_account_info=json.loads(config.google_service_account_json) if config.google_service_account_json else None,
 )
 stats_repo = RiderStatsRepository(config.supabase_url, config.supabase_key)
 image_repo = ExtractedImageRepository(config.supabase_url, config.supabase_key)
@@ -60,8 +60,7 @@ else:
 app.secret_key = config.flask_secret_key
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-_ocr_jobs = {}
-_ocr_jobs_lock = threading.Lock()
+ocr_jobs = OCRJobStore()
 
 
 def login_required(view):
@@ -162,15 +161,9 @@ def rider_photos(rider_id):
     )
 
 
-def _run_ocr_job(job_id, rider_id, saved_images):
-    try:
-        merged_stats, saved_count, errors = rider_service.process_uploaded_photos(rider_id, saved_images)
-        result = {"status": "done", "stats": merged_stats, "saved_count": saved_count, "errors": errors}
-    except Exception as exc:
-        result = {"status": "error", "errors": [f"فشلت معالجة الصور: {exc}"]}
-
-    with _ocr_jobs_lock:
-        _ocr_jobs[job_id] = result
+def _analyze_uploaded_photos(rider_id, saved_images):
+    merged_stats, saved_count, errors = rider_service.process_uploaded_photos(rider_id, saved_images)
+    return {"stats": merged_stats, "saved_count": saved_count, "errors": errors}
 
 
 @app.route("/riders/<rider_id>/photos/upload", methods=["POST"])
@@ -193,14 +186,11 @@ def rider_photos_upload(rider_id):
         unique_name = f"{uuid.uuid4().hex}_{filename}"
         filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_name)
         file.save(filepath)
-        saved_images.append((unique_name, filepath, file.filename))
+        saved_images.append(ImageAnalysis(filename=unique_name, filepath=filepath, original_name=file.filename))
 
-    job_id = uuid.uuid4().hex
-    with _ocr_jobs_lock:
-        _ocr_jobs[job_id] = {"status": "processing"}
-    threading.Thread(target=_run_ocr_job, args=(job_id, rider_id, saved_images), daemon=True).start()
+    job_id = ocr_jobs.start(lambda: _analyze_uploaded_photos(rider_id, saved_images))
 
-    saved_filenames = [img[0] for img in saved_images]
+    saved_filenames = [img.filename for img in saved_images]
     return redirect(url_for(
         "rider_photos",
         rider_id=rider_id,
@@ -214,11 +204,7 @@ def rider_photos_upload(rider_id):
 @app.route("/riders/<rider_id>/photos/status/<job_id>")
 @login_required
 def rider_photos_status(rider_id, job_id):
-    with _ocr_jobs_lock:
-        job = _ocr_jobs.get(job_id, {"status": "not_found"})
-        if job.get("status") in ("done", "error"):
-            del _ocr_jobs[job_id]
-    return jsonify(job)
+    return jsonify(ocr_jobs.consume(job_id))
 
 
 @app.route("/riders/<rider_id>/stats/save", methods=["POST"])

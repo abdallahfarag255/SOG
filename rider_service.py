@@ -94,52 +94,54 @@ class RiderService:
     def get_saved_stats_for_today(self, rider_id: str):
         return self._stats_repo.get_for_rider_today(rider_id)
 
-    def _analyze_image(self, filepath: str) -> tuple:
+    def _analyze_image(self, analysis: ImageAnalysis) -> ImageAnalysis:
         with ThreadPoolExecutor(max_workers=2) as executor:
-            variants_future = executor.submit(self._ocr_engine.extract_text_variants, filepath)
-            recognized_future = executor.submit(self._digit_recognizer.recognize_earned_amount, filepath)
+            variants_future = executor.submit(self._ocr_engine.extract_text_variants, analysis.filepath)
+            recognized_future = executor.submit(self._digit_recognizer.recognize_earned_amount, analysis.filepath)
 
             try:
-                variants, error = variants_future.result(), None
+                analysis.text_variants = variants_future.result()
             except Exception as exc:
-                variants, error = None, exc
+                analysis.error = exc
 
             try:
-                recognized = recognized_future.result()
+                analysis.recognized_installments = recognized_future.result()
             except Exception:
-                recognized = ""
+                analysis.recognized_installments = ""
 
-        return variants, recognized, error
+        return analysis
 
     def process_uploaded_photos(self, rider_id: str, saved_images: list) -> tuple:
-        """saved_images: list of (unique_name, filepath, original_name). Returns (merged_stats dict, saved_count, errors list)."""
+        """saved_images: list of ImageAnalysis. Returns (merged_stats dict, saved_count, errors list)."""
         from stats_parser import RiderStatsParser
 
         with ThreadPoolExecutor(max_workers=max(1, len(saved_images))) as executor:
-            analysis_results = list(executor.map(self._analyze_image, [img[1] for img in saved_images]))
+            analyzed = list(executor.map(self._analyze_image, saved_images))
 
         merged_stats = {"complete_hours": "", "complete_order": "", "installments": "", "wallet": ""}
         saved_count = 0
         errors = []
 
-        for (unique_name, filepath, original_name), (variants, recognized, error) in zip(saved_images, analysis_results):
-            if error is not None:
-                errors.append(f"فشل استخراج النص من {original_name}: {error}")
+        for analysis in analyzed:
+            if analysis.error is not None:
+                errors.append(f"فشل استخراج النص من {analysis.original_name}: {analysis.error}")
                 continue
 
             try:
-                self._image_repo.insert(image_name=unique_name, extracted_text=variants[0], rider_id=rider_id)
+                self._image_repo.insert(
+                    image_name=analysis.filename, extracted_text=analysis.text_variants[0], rider_id=rider_id
+                )
                 saved_count += 1
             except Exception as exc:
-                errors.append(f"فشل الحفظ في قاعدة البيانات لصورة {original_name}: {exc}")
+                errors.append(f"فشل الحفظ في قاعدة البيانات لصورة {analysis.original_name}: {exc}")
 
-            parsed = RiderStatsParser.parse_from_variants(variants)
+            parsed = RiderStatsParser.parse_from_variants(analysis.text_variants)
             for key, value in parsed.items():
                 if value:
                     merged_stats[key] = value
 
-            if not merged_stats["installments"] and recognized:
-                merged_stats["installments"] = recognized
+            if not merged_stats["installments"] and analysis.recognized_installments:
+                merged_stats["installments"] = analysis.recognized_installments
 
         return merged_stats, saved_count, errors
 

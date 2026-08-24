@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 
 @dataclass
@@ -34,6 +35,6 @@ class ImageAnalysis:
     filename: str
     filepath: str
     original_name: str
-    text_variants: list = None
+    text_variants: Optional[list] = None
     recognized_installments: str = ""
-    error: Exception = None
+    error: Optional[Exception] = None

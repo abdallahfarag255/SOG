@@ -3,9 +3,6 @@ import os
 
 class Config:
     def __init__(self):
-        # على الاستضافة: GOOGLE_SERVICE_ACCOUNT_JSON (محتوى الملف كامل كـ env var)
-        # محليًا: GOOGLE_SERVICE_ACCOUNT_FILE (مسار الملف على الجهاز)
-        self.google_service_account_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
         self.google_service_account_file = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
         self.google_sheet_id = os.environ["GOOGLE_SHEET_ID"]
         self.supabase_url = os.environ["SUPABASE_URL"]
