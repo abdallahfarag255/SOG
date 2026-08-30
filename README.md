@@ -17,6 +17,9 @@ rider_service.py         # RiderService — طبقة الأعمال اللي ب�
 ocr_job_store.py         # OCRJobStore — تتبع مهام الـ OCR اللي بتشتغل في الخلفية
 app.py                    # Flask routes (طبقة تحكم رفيعة بس)
 desktop.py                # DesktopApp — نقطة تشغيل التطبيق كـ Desktop App (pywebview + waitress)
+updater.py                # Updater — فحص وتطبيق تحديثات البرنامج من GitHub Releases
+update_progress_window.py # UpdateProgressWindow — نافذة تقدّم التحميل وقت التحديث
+version.py                # رقم إصدار البرنامج الحالي
 ```
 
 ## 1. تثبيت المتطلبات
@@ -88,12 +91,33 @@ python desktop.py
 
 ### عمل ملف .exe مستقل
 
+الـ exe بيتضمّن Tesseract OCR جوّاه، فمش محتاج تثبّته على أي جهاز تاني تشغّل عليه البرنامج. لازم تجهّز نسخة مصغّرة منه مرة واحدة قبل البناء:
+
 ```powershell
+# تجهيز tesseract_bin/ (مرة واحدة، أو لما تحدّث نسخة Tesseract)
+$src = "C:\Program Files\Tesseract-OCR"
+New-Item -ItemType Directory -Path "tesseract_bin\tessdata" -Force
+Copy-Item "$src\tesseract.exe" "tesseract_bin\"
+Copy-Item "$src\*.dll" "tesseract_bin\"
+Copy-Item "$src\tessdata\ara.traineddata","$src\tessdata\eng.traineddata","$src\tessdata\osd.traineddata" "tesseract_bin\tessdata\"
+
+# البناء
 pip install pyinstaller
-pyinstaller --onefile --windowed --add-data "templates;templates" --name "SOG Monitoring" desktop.py
+pyinstaller --onedir --windowed --add-data "templates;templates" --add-data "tesseract_bin;tesseract_bin" --name "SOG Monitoring" desktop.py
 ```
 
-الناتج هيكون في `dist\SOG Monitoring.exe`. **مهم:** لازم تحط ملفات `.env` و `service_account.json` في نفس المجلد جنب الملف التنفيذي عشان يشتغل، لأنهم مش متضمّنين جوه الـ exe (أسرار وميتنقلوش).
+الناتج هيكون مجلد `dist\SOG Monitoring\` كامل (لازم تنقل المجلد كله، مش الـ exe بس). **مهم:** لازم تحط ملفات `.env` و `service_account.json` جوه المجلد ده عشان يشتغل، لأنهم مش متضمّنين جوه الـ exe (أسرار وميتنقلوش).
+
+### التحديث التلقائي
+
+البرنامج بيتأكد تلقائيًا عند كل فتح إن مفيش نسخة أحدث منشورة على GitHub Releases (`updater.py`)، ولو لقى واحدة بيحمّلها ويستبدل نفسه بيها لوحده. لنشر تحديث جديد:
+
+```powershell
+# 1. زوّد الرقم في version.py
+# 2. اعمل build زي فوق
+Compress-Archive -Path "dist\SOG Monitoring" -DestinationPath "SOG-Monitoring-vX.Y.Z.zip" -Force
+gh release create vX.Y.Z "SOG-Monitoring-vX.Y.Z.zip" --repo abdallahfarag255/SOG --title "vX.Y.Z" --notes "..." --latest
+```
 
 ## الميزات الأساسية
 
