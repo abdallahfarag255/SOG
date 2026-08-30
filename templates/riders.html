@@ -191,7 +191,8 @@
             {% for r in riders %}
             <tr data-name="{{ r.driver_name|lower }}" data-id="{{ r.id_rider|lower }}" data-zone="{{ r.zone }}">
                 <td>
-                    <button type="button" class="add-photo-btn" title="إضافة صور" onclick="openPhotosModal('{{ r.id_rider }}', '{{ r.driver_name }}', '{{ r.phone }}')">+</button>
+                    <button type="button" class="add-photo-btn" title="إضافة صور"
+                        data-rider-id="{{ r.id_rider }}" data-driver-name="{{ r.driver_name }}" data-phone="{{ r.phone }}">+</button>
                 </td>
                 <td class="{% if r.equation_sign == 'positive' %}eq-positive{% elif r.equation_sign == 'negative' %}eq-negative{% endif %}">{{ r.equation }}</td>
                 <td>{{ r.installments }}</td>
@@ -261,6 +262,13 @@
             document.getElementById('photosFrame').src = url;
             document.getElementById('photosModal').classList.add('open');
         }
+        document.getElementById('ridersBody').addEventListener('click', function (e) {
+            var btn = e.target.closest('.add-photo-btn');
+            if (btn) {
+                openPhotosModal(btn.dataset.riderId, btn.dataset.driverName, btn.dataset.phone);
+            }
+        });
+
         function closePhotosModal() {
             document.getElementById('photosModal').classList.remove('open');
             document.getElementById('photosFrame').src = '';
