@@ -9,8 +9,8 @@
         body { font-family: Tahoma, Arial, sans-serif; width: 100%; margin: 0 auto; padding: 24px 32px; max-width: 100%; overflow-x: hidden; }
         .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
         .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; min-width: 900px; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; white-space: nowrap; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 12px; word-break: break-word; }
         th { background: #f4f4f4; }
 
         @media (max-width: 600px) {
@@ -211,7 +211,7 @@
     </div>
     {% else %}
     <div class="table-scroll">
-    <table style="min-width: 700px;">
+    <table>
         <thead>
             <tr>
                 <th>Equation</th>
