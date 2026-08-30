@@ -37,7 +37,7 @@ class Updater:
 
         return asset["browser_download_url"], latest_version
 
-    def apply_update(self, download_url: str) -> bool:
+    def apply_update(self, download_url: str, progress_callback=None) -> bool:
         """Downloads the update, then hands off to a helper script that replaces this
         app's folder once the current process exits. Only works for the packaged exe."""
         if not getattr(sys, "frozen", False):
@@ -48,7 +48,13 @@ class Updater:
 
         tmp_dir = tempfile.mkdtemp(prefix="sog_update_")
         zip_path = os.path.join(tmp_dir, "update.zip")
-        urllib.request.urlretrieve(download_url, zip_path)
+
+        def _report_progress(block_num, block_size, total_size):
+            if progress_callback and total_size > 0:
+                percent = min(100, int(block_num * block_size * 100 / total_size))
+                progress_callback(percent)
+
+        urllib.request.urlretrieve(download_url, zip_path, reporthook=_report_progress if progress_callback else None)
 
         extract_dir = os.path.join(tmp_dir, "extracted")
         with zipfile.ZipFile(zip_path) as archive:

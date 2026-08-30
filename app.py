@@ -31,6 +31,19 @@ from supabase_repository import (
 
 config = Config()
 
+
+def _resolve_tesseract_cmd() -> str:
+    if config.tesseract_cmd:
+        return config.tesseract_cmd
+    if getattr(sys, "frozen", False):
+        bundled = os.path.join(sys._MEIPASS, "tesseract_bin", "tesseract.exe")
+        if os.path.isfile(bundled):
+            return bundled
+    return None
+
+
+tesseract_cmd = _resolve_tesseract_cmd()
+
 sheets_repo = GoogleSheetsRepository(
     sheet_id=config.google_sheet_id,
     cache_ttl_seconds=config.sheets_cache_ttl_seconds,
@@ -40,8 +53,8 @@ stats_repo = RiderStatsRepository(config.supabase_url, config.supabase_key)
 image_repo = ExtractedImageRepository(config.supabase_url, config.supabase_key)
 user_repo = UserRepository(config.supabase_url, config.supabase_key)
 digit_template_repo = DigitTemplateRepository(config.supabase_url, config.supabase_key)
-ocr_engine = OCREngine(tesseract_cmd=config.tesseract_cmd)
-digit_recognizer = DigitRecognizer(template_repository=digit_template_repo, tesseract_cmd=config.tesseract_cmd)
+ocr_engine = OCREngine(tesseract_cmd=tesseract_cmd)
+digit_recognizer = DigitRecognizer(template_repository=digit_template_repo, tesseract_cmd=tesseract_cmd)
 
 rider_service = RiderService(
     sheets_repo=sheets_repo,

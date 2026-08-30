@@ -10,6 +10,7 @@ flask_err.log
 .claude/
 build/
 dist/
+tesseract_bin/
 *.spec
 desktop_out.log
 desktop_err.log
