@@ -145,12 +145,14 @@
 
     <div class="day-nav">
         <a href="{{ url_for('riders', date=next_date) }}">اليوم التالي</a>
-        <span class="day-label">
+        <span class="day-label" id="dayLabel" style="cursor:pointer;" title="اختار تاريخ">
             {{ selected_date_display }}
             {% if is_today %}
                 <span class="today-pill">اليوم</span>
             {% endif %}
         </span>
+        <input type="date" id="datePicker" value="{{ selected_date }}"
+            style="position:absolute; opacity:0; width:0; height:0; pointer-events:none;">
         <a href="{{ url_for('riders', date=prev_date) }}">اليوم السابق</a>
     </div>
 
@@ -158,17 +160,14 @@
 
     <div class="filter-bar">
         <input type="text" id="searchInput" placeholder="بحث بالاسم أو ID..." oninput="filterRows()">
-        {% if is_today %}
         <select id="zoneFilter" onchange="filterRows()">
             <option value="">كل المناطق</option>
             {% for z in zones %}
             <option value="{{ z }}">{{ z }}</option>
             {% endfor %}
         </select>
-        {% endif %}
     </div>
 
-    {% if is_today %}
     <div class="table-scroll">
     <table>
         <thead>
@@ -180,8 +179,10 @@
                 <th>Complete Order</th>
                 <th>Complete Hours</th>
                 <th>Zone</th>
+                {% if is_today %}
                 <th>Rent Remaining</th>
                 <th>State</th>
+                {% endif %}
                 <th>Phone Number</th>
                 <th>Driver Name</th>
                 <th>ID Rider</th>
@@ -200,8 +201,10 @@
                 <td>{{ r.complete_order }}</td>
                 <td>{{ r.complete_hours }}</td>
                 <td>{{ r.zone }}</td>
+                {% if is_today %}
                 <td>{{ r.rent_remaining }}</td>
                 <td>{{ r.state }}</td>
+                {% endif %}
                 <td>{{ r.phone }}</td>
                 <td>{{ r.driver_name }}</td>
                 <td>{{ r.id_rider }}</td>
@@ -210,38 +213,6 @@
         </tbody>
     </table>
     </div>
-    {% else %}
-    <div class="table-scroll">
-    <table>
-        <thead>
-            <tr>
-                <th>Equation</th>
-                <th>Installments</th>
-                <th>Wallet</th>
-                <th>Complete Order</th>
-                <th>Complete Hours</th>
-                <th>Phone Number</th>
-                <th>Driver Name</th>
-                <th>ID Rider</th>
-            </tr>
-        </thead>
-        <tbody id="ridersBody">
-            {% for r in riders %}
-            <tr data-name="{{ r.driver_name|lower }}" data-id="{{ r.id_rider|lower }}">
-                <td class="{% if r.equation_sign == 'positive' %}eq-positive{% elif r.equation_sign == 'negative' %}eq-negative{% endif %}">{{ r.equation }}</td>
-                <td>{{ r.installments }}</td>
-                <td>{{ r.wallet }}</td>
-                <td>{{ r.complete_order }}</td>
-                <td>{{ r.complete_hours }}</td>
-                <td>{{ r.phone }}</td>
-                <td>{{ r.driver_name }}</td>
-                <td>{{ r.id_rider }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    </div>
-    {% endif %}
 
     <div class="modal-overlay" id="photosModal">
         <div class="modal-box">
@@ -258,7 +229,8 @@
             var base = "{{ url_for('rider_photos', rider_id='RIDER_ID') }}";
             var url = base.replace('RIDER_ID', riderId)
                 + '?driver_name=' + encodeURIComponent(driverName)
-                + '&phone=' + encodeURIComponent(phone);
+                + '&phone=' + encodeURIComponent(phone)
+                + '&date=' + encodeURIComponent("{{ selected_date }}");
             document.getElementById('photosFrame').src = url;
             document.getElementById('photosModal').classList.add('open');
         }
@@ -266,6 +238,20 @@
             var btn = e.target.closest('.add-photo-btn');
             if (btn) {
                 openPhotosModal(btn.dataset.riderId, btn.dataset.driverName, btn.dataset.phone);
+            }
+        });
+
+        document.getElementById('dayLabel').addEventListener('click', function () {
+            var picker = document.getElementById('datePicker');
+            if (picker.showPicker) {
+                picker.showPicker();
+            } else {
+                picker.focus();
+            }
+        });
+        document.getElementById('datePicker').addEventListener('change', function (e) {
+            if (e.target.value) {
+                window.location.href = "{{ url_for('riders') }}?date=" + e.target.value;
             }
         });
 
@@ -303,7 +289,23 @@
             });
 
             document.getElementById('visibleCount').textContent = visible;
+
+            try {
+                sessionStorage.setItem('ridersSearch', search);
+                sessionStorage.setItem('ridersZone', zone);
+            } catch (e) { /* storage unavailable, ignore */ }
         }
+
+        (function restoreFilters() {
+            try {
+                var savedSearch = sessionStorage.getItem('ridersSearch');
+                var savedZone = sessionStorage.getItem('ridersZone');
+                var zoneEl = document.getElementById('zoneFilter');
+                if (savedSearch) document.getElementById('searchInput').value = savedSearch;
+                if (savedZone && zoneEl) zoneEl.value = savedZone;
+                if (savedSearch || savedZone) filterRows();
+            } catch (e) { /* storage unavailable, ignore */ }
+        })();
 
         {% if is_today %}
         setInterval(function () {
