@@ -27,7 +27,7 @@
 </head>
 <body>
     <h1>{{ driver_name }}</h1>
-    <p style="margin-top:-10px; color:#666;">{{ rider_id }}</p>
+    <p style="margin-top:-10px; color:#666;">{{ rider_id }} &mdash; {{ stat_date }}</p>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -44,6 +44,7 @@
     <form action="{{ url_for('rider_photos_upload', rider_id=rider_id) }}" method="post" enctype="multipart/form-data">
         <input type="hidden" name="driver_name" value="{{ driver_name }}">
         <input type="hidden" name="phone" value="{{ phone }}">
+        <input type="hidden" name="stat_date" value="{{ stat_date }}">
         <input type="file" name="images" accept="image/*" multiple required>
         <button type="submit">رفع واستخراج البيانات</button>
     </form>
@@ -52,6 +53,7 @@
         <input type="hidden" name="images" value="{{ images }}">
         <input type="hidden" name="driver_name" value="{{ driver_name }}">
         <input type="hidden" name="phone" value="{{ phone }}">
+        <input type="hidden" name="stat_date" value="{{ stat_date }}">
         <div class="table-scroll">
         <table>
             <thead>
@@ -101,7 +103,12 @@
                     } else if (banner) {
                         banner.textContent = "حصل خطأ أثناء تحليل الصور";
                     }
-                    (job.errors || []).forEach(function (err) { console.error(err); });
+                    if (banner && (job.errors || []).length) {
+                        var errorBox = document.createElement("div");
+                        errorBox.style.cssText = "margin-top:8px; font-size:12px; color:#b71c1c; white-space:pre-wrap; direction:ltr; text-align:left;";
+                        errorBox.textContent = job.errors.join("\n");
+                        banner.appendChild(errorBox);
+                    }
                 })
                 .catch(function () { setTimeout(poll, 3000); });
         })();

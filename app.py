@@ -33,7 +33,7 @@ config = Config()
 
 
 def _resolve_tesseract_cmd() -> str:
-    if config.tesseract_cmd:
+    if config.tesseract_cmd and os.path.isfile(config.tesseract_cmd):
         return config.tesseract_cmd
     if getattr(sys, "frozen", False):
         bundled = os.path.join(sys._MEIPASS, "tesseract_bin", "tesseract.exe")
@@ -134,6 +134,7 @@ def riders():
         riders=rows,
         zones=zones,
         is_today=is_today,
+        selected_date=selected_date.isoformat(),
         selected_date_display=ArabicDateFormatter.format(selected_date),
         prev_date=(selected_date - timedelta(days=1)).isoformat(),
         next_date=(selected_date + timedelta(days=1)).isoformat(),
@@ -143,9 +144,11 @@ def riders():
 @app.route("/riders/<rider_id>/photos")
 @login_required
 def rider_photos(rider_id):
+    stat_date = request.args.get("date") or date.today().isoformat()
+
     saved_stats = None
     try:
-        saved_stats = rider_service.get_saved_stats_for_today(rider_id)
+        saved_stats = rider_service.get_saved_stats_for(rider_id, stat_date)
     except Exception as exc:
         flash(f"تعذر تحميل البيانات المحفوظة: {exc}")
 
@@ -170,6 +173,7 @@ def rider_photos(rider_id):
         phone=phone,
         stats=display_stats,
         images=images,
+        stat_date=stat_date,
         job_id=request.args.get("job_id", ""),
     )
 
@@ -189,6 +193,7 @@ def rider_photos_upload(rider_id):
 
     driver_name = request.form.get("driver_name", "")
     phone = request.form.get("phone", "")
+    stat_date = request.form.get("stat_date") or date.today().isoformat()
 
     saved_images = []
     for file in files:
@@ -210,6 +215,7 @@ def rider_photos_upload(rider_id):
         images=",".join(saved_filenames),
         driver_name=driver_name,
         phone=phone,
+        date=stat_date,
         job_id=job_id,
     ))
 
@@ -230,11 +236,12 @@ def rider_stats_save(rider_id):
     images = [f for f in request.form.get("images", "").split(",") if f]
     driver_name = request.form.get("driver_name", "").strip()
     phone = request.form.get("phone", "").strip()
+    stat_date = request.form.get("stat_date") or date.today().isoformat()
 
     try:
         rider_service.save_stats(
             rider_id, complete_hours, complete_order, installments, wallet,
-            images, driver_name, phone,
+            images, driver_name, phone, stat_date,
         )
         flash("تم الحفظ بنجاح")
         threading.Thread(
@@ -243,7 +250,7 @@ def rider_stats_save(rider_id):
     except Exception as exc:
         flash(f"فشل الحفظ: {exc}")
 
-    return redirect(url_for("rider_photos", rider_id=rider_id))
+    return redirect(url_for("rider_photos", rider_id=rider_id, date=stat_date))
 
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

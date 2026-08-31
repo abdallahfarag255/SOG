@@ -74,30 +74,54 @@ class RiderStatsRepository(SupabaseRepository):
     TABLE_NAME = "rider_stats"
 
     def upsert(self, stats: RiderStats) -> dict:
-        today = date.today().isoformat()
+        stat_date = stats.stat_date or date.today().isoformat()
         response = (
             self._get_client().table(self.TABLE_NAME)
             .upsert({
                 "rider_id": stats.rider_id,
-                "stat_date": today,
+                "stat_date": stat_date,
                 "complete_hours": stats.complete_hours,
                 "complete_order": stats.complete_order,
                 "installments": stats.installments,
                 "wallet": stats.wallet,
                 "driver_name": stats.driver_name,
                 "phone": stats.phone,
+                "zone": stats.zone,
             }, on_conflict="rider_id,stat_date")
             .execute()
         )
         return response.data[0] if response.data else {}
 
-    def get_for_rider_today(self, rider_id: str):
+    def ensure_daily_snapshot(self, riders: list) -> None:
+        """Makes sure every currently active rider has a rider_stats row for today,
+        so archived/past-day views can show everyone who was active that day —
+        even riders nobody entered stats for. Never overwrites existing rows."""
+        if not riders:
+            return
         today = date.today().isoformat()
+        rows = [{
+            "rider_id": r.id_rider,
+            "stat_date": today,
+            "driver_name": r.driver_name,
+            "phone": r.phone,
+            "zone": r.zone,
+            "complete_hours": "",
+            "complete_order": "",
+            "installments": "",
+            "wallet": "",
+        } for r in riders]
+        (
+            self._get_client().table(self.TABLE_NAME)
+            .upsert(rows, on_conflict="rider_id,stat_date", ignore_duplicates=True)
+            .execute()
+        )
+
+    def get_for_rider(self, rider_id: str, stat_date: str):
         response = (
             self._get_client().table(self.TABLE_NAME)
             .select("*")
             .eq("rider_id", rider_id)
-            .eq("stat_date", today)
+            .eq("stat_date", stat_date)
             .limit(1)
             .execute()
         )
@@ -140,5 +164,6 @@ class RiderStatsRepository(SupabaseRepository):
             wallet=row.get("wallet") or "",
             driver_name=row.get("driver_name") or "",
             phone=row.get("phone") or "",
+            zone=row.get("zone") or "",
             stat_date=row.get("stat_date", ""),
         )

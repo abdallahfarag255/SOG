@@ -55,6 +55,11 @@ class RiderService:
         except Exception:
             pass
 
+        try:
+            self._stats_repo.ensure_daily_snapshot(riders)
+        except Exception:
+            pass
+
         stats_by_rider = self._stats_repo.get_all_today()
 
         result = []
@@ -79,6 +84,7 @@ class RiderService:
                 id_rider=s.rider_id,
                 driver_name=s.driver_name,
                 phone=s.phone,
+                zone=s.zone,
                 complete_hours=s.complete_hours,
                 complete_order=s.complete_order,
                 installments=s.installments,
@@ -91,8 +97,8 @@ class RiderService:
     def find_rider(self, rider_id: str):
         return self._sheets_repo.find_rider(rider_id)
 
-    def get_saved_stats_for_today(self, rider_id: str):
-        return self._stats_repo.get_for_rider_today(rider_id)
+    def get_saved_stats_for(self, rider_id: str, stat_date: str):
+        return self._stats_repo.get_for_rider(rider_id, stat_date)
 
     def _analyze_image(self, analysis: ImageAnalysis) -> ImageAnalysis:
         with ThreadPoolExecutor(max_workers=2) as executor:
@@ -160,7 +166,7 @@ class RiderService:
 
     def save_stats(self, rider_id: str, complete_hours: str, complete_order: str,
                    installments: str, wallet: str, image_filenames: list,
-                   driver_name: str = "", phone: str = "") -> None:
+                   driver_name: str = "", phone: str = "", stat_date: str = "") -> None:
         if not driver_name:
             rider = self.find_rider(rider_id)
             driver_name = rider.driver_name if rider else ""
@@ -174,5 +180,6 @@ class RiderService:
             wallet=wallet,
             driver_name=driver_name,
             phone=phone,
+            stat_date=stat_date,
         )
         self._stats_repo.upsert(stats)

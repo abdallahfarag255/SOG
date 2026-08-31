@@ -27,6 +27,7 @@ class RiderStats:
     wallet: str = ""
     driver_name: str = ""
     phone: str = ""
+    zone: str = ""
     stat_date: str = ""
 
 
