@@ -1,4 +1,6 @@
 import threading
+import time
+import urllib.request
 
 import webview
 from waitress import serve
@@ -18,8 +20,24 @@ class DesktopApp:
             return
 
         threading.Thread(target=self._serve, daemon=True).start()
+        self._wait_until_ready()
         webview.create_window("SOG Monitoring", f"http://127.0.0.1:{self._port}", width=1200, height=800, maximized=True)
         webview.start()
+
+    def _wait_until_ready(self, timeout: float = 15.0) -> None:
+        # waitress needs a brief moment to start listening. Opening the
+        # window before then makes it briefly show a blank/black
+        # connection-failed page until it (sometimes) retries on its own -
+        # waiting here means the window only ever opens once there's
+        # something real to show.
+        url = f"http://127.0.0.1:{self._port}/"
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                urllib.request.urlopen(url, timeout=0.5)
+                return
+            except Exception:
+                time.sleep(0.1)
 
     def _apply_pending_update(self) -> bool:
         update = self._updater.find_update()
