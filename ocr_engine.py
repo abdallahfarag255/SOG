@@ -45,6 +45,9 @@ class OCREngine:
     CONFIGS = [(2, 6, False, False), (3, 11, False, False), (2, 3, False, False),
                (2, 6, True, False), (3, 11, False, True)]
 
+    STRIP_COUNT = 3
+    STRIP_OVERLAP = 0.2
+
     def __init__(self, tesseract_cmd: str = None, lang: str = "ara+eng"):
         if tesseract_cmd:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
@@ -54,10 +57,35 @@ class OCREngine:
         image = ImagePreprocessor.grayscale_upscale(image_path, scale, invert, sharpen)
         return pytesseract.image_to_string(image, lang=self._lang, config=f"--psm {psm} --oem 1").strip()
 
+    def _run_strips(self, image_path: str) -> str:
+        # On some screenshots, feeding Tesseract the whole page at once (even
+        # at psm 6) garbles a label that reads perfectly once isolated -
+        # a longer, busier page seems to throw off its block segmentation
+        # for that one text run even though nothing else about it is
+        # unusual. Splitting into a few overlapping horizontal bands and
+        # OCR-ing each alone sidesteps that, at native resolution (no
+        # upscaling - text that's already a comfortable native size can
+        # come out worse after interpolation, unlike small/blurry text).
+        image = Image.open(image_path)
+        gray = ImageOps.grayscale(image)
+        w, h = gray.size
+        strip_h = h / self.STRIP_COUNT
+        overlap = int(strip_h * self.STRIP_OVERLAP)
+        texts = []
+        for i in range(self.STRIP_COUNT):
+            top = max(0, int(i * strip_h) - overlap)
+            bottom = min(h, int((i + 1) * strip_h) + overlap)
+            strip = gray.crop((0, top, w, bottom))
+            texts.append(pytesseract.image_to_string(strip, lang=self._lang, config="--psm 6 --oem 1").strip())
+        return "\n".join(texts)
+
     def extract_text_variants(self, image_path: str) -> list:
-        with ThreadPoolExecutor(max_workers=len(self.CONFIGS)) as executor:
+        with ThreadPoolExecutor(max_workers=len(self.CONFIGS) + 1) as executor:
             futures = [
                 executor.submit(self._run, image_path, scale, psm, invert, sharpen)
                 for scale, psm, invert, sharpen in self.CONFIGS
             ]
-            return [f.result() for f in futures]
+            strip_future = executor.submit(self._run_strips, image_path)
+            results = [f.result() for f in futures]
+            results.append(strip_future.result())
+            return results

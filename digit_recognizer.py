@@ -123,7 +123,14 @@ class DigitRecognizer:
             return ""
         return f"{''.join(hour_digits)}س {''.join(minute_digits)}د"
 
-    def _locate_value_line(self, image_path: str, label_tokens: list, scale: int = 2):
+    # (scale, psm) attempts tried in order until one locates the label.
+    # Different screenshots need different scale/psm combos to read the
+    # same label reliably (a busier page can garble a label at one psm
+    # that reads fine at another, or after a different amount of upscaling)
+    # so trying several is cheap insurance against relying on just one.
+    LOCATE_ATTEMPTS = [(2, 11), (1, 6), (2, 6), (1, 11)]
+
+    def _locate_value_line(self, image_path: str, label_tokens: list):
         image = Image.open(image_path)
         gray = ImageOps.grayscale(image)
         w, h = gray.size
@@ -132,9 +139,16 @@ class DigitRecognizer:
             factor = self.MAX_SOURCE_DIMENSION / longest
             w, h = max(1, round(w * factor)), max(1, round(h * factor))
             gray = gray.resize((w, h), Image.LANCZOS)
-        upscaled = gray.resize((w * scale, h * scale), Image.LANCZOS)
 
-        data = pytesseract.image_to_data(upscaled, lang=self._lang, config="--psm 11 --oem 1", output_type=Output.DICT)
+        for scale, psm in self.LOCATE_ATTEMPTS:
+            upscaled = gray.resize((w * scale, h * scale), Image.LANCZOS) if scale != 1 else gray
+            crop = self._locate_in_image(upscaled, label_tokens, scale, psm)
+            if crop is not None:
+                return crop
+        return None
+
+    def _locate_in_image(self, upscaled: Image.Image, label_tokens: list, scale: int, psm: int):
+        data = pytesseract.image_to_data(upscaled, lang=self._lang, config=f"--psm {psm} --oem 1", output_type=Output.DICT)
 
         label_idx = None
         for i, text in enumerate(data["text"]):

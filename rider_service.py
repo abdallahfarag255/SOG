@@ -159,16 +159,17 @@ class RiderService:
                 if value:
                     merged_stats[key] = value
 
-            if not merged_stats["installments"] and analysis.recognized_installments:
+            # Both shape-matching recognizers only ever return a value when
+            # every glyph they segmented matched a known template with high
+            # confidence, so they're more trustworthy than the plain-text OCR
+            # guess above (which can misread a digit but still return
+            # *something*, e.g. "1س 31د" instead of "11س 31د", or garble
+            # non-Western numeral fonts entirely) - let them win whenever
+            # they have an answer, instead of only when text OCR found
+            # nothing at all.
+            if analysis.recognized_installments:
                 merged_stats["installments"] = analysis.recognized_installments
 
-            # The shape-matching recognizer only ever returns a value when
-            # every glyph it segmented matched a known template with high
-            # confidence, so it's more trustworthy than the plain-text OCR
-            # guess above (which can misread a digit but still return
-            # *something*, e.g. "1س 31د" instead of "11س 31د") - let it win
-            # whenever it has an answer, instead of only when text OCR found
-            # nothing at all.
             if analysis.recognized_hours:
                 merged_stats["complete_hours"] = analysis.recognized_hours
 
