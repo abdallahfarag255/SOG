@@ -88,7 +88,7 @@ def index():
     return redirect(url_for("riders"))
 
 
-MIN_ARCHIVE_DATE = date(2026, 9, 4)
+MIN_ARCHIVE_DATE = date(2026, 9, 5)
 
 
 @app.route("/riders")
