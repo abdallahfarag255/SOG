@@ -29,20 +29,6 @@ class ExtractedImageRepository(SupabaseRepository):
         return response.data[0] if response.data else {}
 
 
-class UserRepository(SupabaseRepository):
-    TABLE_NAME = "users"
-
-    def get_by_username(self, username: str) -> dict:
-        response = (
-            self._get_client().table(self.TABLE_NAME)
-            .select("*")
-            .eq("username", username)
-            .limit(1)
-            .execute()
-        )
-        return response.data[0] if response.data else None
-
-
 class DigitTemplateRepository(SupabaseRepository):
     TABLE_NAME = "digit_templates"
 

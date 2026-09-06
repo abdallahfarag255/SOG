@@ -3,10 +3,9 @@ import sys
 import threading
 import uuid
 from datetime import date, timedelta
-from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, flash, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(__file__)
@@ -22,7 +21,6 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 # one internal thread removes that contention.
 os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 
-from auth_service import AuthService
 from config import Config
 from digit_recognizer import DigitRecognizer
 from models import ImageAnalysis
@@ -35,7 +33,6 @@ from supabase_repository import (
     DigitTemplateRepository,
     ExtractedImageRepository,
     RiderStatsRepository,
-    UserRepository,
 )
 
 config = Config()
@@ -63,7 +60,6 @@ sheets_repo = GoogleSheetsRepository(
 )
 stats_repo = RiderStatsRepository(config.supabase_url, config.supabase_key)
 image_repo = ExtractedImageRepository(config.supabase_url, config.supabase_key)
-user_repo = UserRepository(config.supabase_url, config.supabase_key)
 digit_template_repo = DigitTemplateRepository(config.supabase_url, config.supabase_key)
 ocr_engine = OCREngine(tesseract_cmd=tesseract_cmd)
 digit_recognizer = DigitRecognizer(template_repository=digit_template_repo, tesseract_cmd=tesseract_cmd)
@@ -76,7 +72,6 @@ rider_service = RiderService(
     digit_recognizer=digit_recognizer,
     upload_folder=UPLOAD_FOLDER,
 )
-auth_service = AuthService(user_repo)
 
 if getattr(sys, "frozen", False):
     app = Flask(__name__, template_folder=os.path.join(sys._MEIPASS, "templates"))
@@ -88,42 +83,12 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 ocr_jobs = OCRJobStore()
 
 
-def login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if not session.get("logged_in"):
-            return redirect(url_for("login", next=request.path))
-        return view(*args, **kwargs)
-    return wrapped
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    error = None
-    if request.method == "POST":
-        username = request.form.get("username", "")
-        password = request.form.get("password", "")
-        if auth_service.verify(username, password):
-            session["logged_in"] = True
-            return redirect(request.args.get("next") or url_for("riders"))
-        error = "اسم المستخدم أو كلمة السر غير صحيحة"
-    return render_template("login.html", error=error)
-
-
-@app.route("/logout")
-def logout():
-    session.pop("logged_in", None)
-    return redirect(url_for("login"))
-
-
 @app.route("/")
-@login_required
 def index():
     return redirect(url_for("riders"))
 
 
 @app.route("/riders")
-@login_required
 def riders():
     today = date.today()
     selected_str = request.args.get("date") or today.isoformat()
@@ -155,7 +120,6 @@ def riders():
 
 
 @app.route("/riders/<rider_id>/notes/save", methods=["POST"])
-@login_required
 def rider_note_save(rider_id):
     stat_date = request.form.get("stat_date") or date.today().isoformat()
     notes = request.form.get("notes", "")
@@ -167,7 +131,6 @@ def rider_note_save(rider_id):
 
 
 @app.route("/riders/<rider_id>/photos")
-@login_required
 def rider_photos(rider_id):
     stat_date = request.args.get("date") or date.today().isoformat()
 
@@ -209,7 +172,6 @@ def _analyze_uploaded_photos(rider_id, saved_images):
 
 
 @app.route("/riders/<rider_id>/photos/upload", methods=["POST"])
-@login_required
 def rider_photos_upload(rider_id):
     files = [f for f in request.files.getlist("images") if f and f.filename]
     if not files:
@@ -246,13 +208,11 @@ def rider_photos_upload(rider_id):
 
 
 @app.route("/riders/<rider_id>/photos/status/<job_id>")
-@login_required
 def rider_photos_status(rider_id, job_id):
     return jsonify(ocr_jobs.consume(job_id))
 
 
 @app.route("/riders/<rider_id>/stats/save", methods=["POST"])
-@login_required
 def rider_stats_save(rider_id):
     complete_hours = request.form.get("complete_hours", "").strip()
     complete_order = request.form.get("complete_order", "").strip()
