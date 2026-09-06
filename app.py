@@ -88,11 +88,16 @@ def index():
     return redirect(url_for("riders"))
 
 
+MIN_ARCHIVE_DATE = date(2026, 9, 4)
+
+
 @app.route("/riders")
 def riders():
     today = date.today()
     selected_str = request.args.get("date") or today.isoformat()
     selected_date = date.fromisoformat(selected_str)
+    if selected_date < MIN_ARCHIVE_DATE:
+        selected_date = MIN_ARCHIVE_DATE
     is_today = selected_date == today
 
     try:
@@ -115,6 +120,8 @@ def riders():
         selected_date_display=ArabicDateFormatter.format(selected_date),
         prev_date=(selected_date - timedelta(days=1)).isoformat(),
         next_date=(selected_date + timedelta(days=1)).isoformat(),
+        can_go_prev=selected_date > MIN_ARCHIVE_DATE,
+        min_archive_date=MIN_ARCHIVE_DATE.isoformat(),
         app_version=APP_VERSION,
     )
 
