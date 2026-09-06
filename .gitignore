@@ -11,6 +11,7 @@ flask_err.log
 build/
 dist/
 tesseract_bin/
+update_check.log
 *.spec
 desktop_out.log
 desktop_err.log

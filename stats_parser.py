@@ -6,6 +6,7 @@ class RiderStatsParser:
 
     HOURS_LABEL = "ساعات التوصيل"
     ORDER_LABEL = "مكتمل"
+    ORDERS_HEADER = "الطلبات"
     EARNED_LABEL = "إجمالي المبالغ المكتسبة"
     WALLET_LABEL = "الرصيد الحالي"
 
@@ -50,11 +51,25 @@ class RiderStatsParser:
     @classmethod
     def _extract_order(cls, text: str) -> str:
         idx = text.find(cls.ORDER_LABEL)
+        if idx != -1:
+            segment = text[idx: idx + 40]
+            match = re.search(r"\((\d+)\)", segment) or re.search(r"\d+", segment)
+            if match:
+                return match.group(1) if match.lastindex else match.group(0)
+
+        # ORDER_LABEL itself may fail to OCR cleanly; fall back to the
+        # "الطلبات" section header, which reads reliably, and take the
+        # counts shown in parentheses there (cancelled, then completed).
+        idx = text.find(cls.ORDERS_HEADER)
         if idx == -1:
             return ""
-        segment = text[idx: idx + 15]
-        match = re.search(r"\d+", segment)
-        return match.group(0) if match else ""
+        segment = text[idx: idx + 80]
+        counts = re.findall(r"\((\d+)\)", segment)
+        if len(counts) >= 2:
+            return counts[1]
+        if len(counts) == 1:
+            return counts[0]
+        return ""
 
     @classmethod
     def _extract_amount_field(cls, texts: list, label: str, window: int = 50) -> str:

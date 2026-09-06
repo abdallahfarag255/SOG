@@ -92,29 +92,73 @@ class RiderStatsRepository(SupabaseRepository):
         )
         return response.data[0] if response.data else {}
 
+    def update_notes(self, rider_id: str, stat_date: str, notes: str) -> None:
+        (
+            self._get_client().table(self.TABLE_NAME)
+            .upsert(
+                {"rider_id": rider_id, "stat_date": stat_date, "notes": notes},
+                on_conflict="rider_id,stat_date",
+            )
+            .execute()
+        )
+
     def ensure_daily_snapshot(self, riders: list) -> None:
         """Makes sure every currently active rider has a rider_stats row for today,
         so archived/past-day views can show everyone who was active that day —
-        even riders nobody entered stats for. Never overwrites existing rows."""
+        even riders nobody entered stats for. Never overwrites a row's saved
+        stats or already-filled driver_name/phone/zone; only backfills those
+        three fields if an earlier snapshot the same day captured them blank
+        (e.g. the source sheet hadn't been filled in yet at that point)."""
         if not riders:
             return
         today = date.today().isoformat()
-        rows = [{
-            "rider_id": r.id_rider,
-            "stat_date": today,
-            "driver_name": r.driver_name,
-            "phone": r.phone,
-            "zone": r.zone,
-            "complete_hours": "",
-            "complete_order": "",
-            "installments": "",
-            "wallet": "",
-        } for r in riders]
-        (
-            self._get_client().table(self.TABLE_NAME)
-            .upsert(rows, on_conflict="rider_id,stat_date", ignore_duplicates=True)
+        client = self._get_client()
+
+        existing_response = (
+            client.table(self.TABLE_NAME)
+            .select("rider_id, driver_name, phone, zone")
+            .eq("stat_date", today)
+            .in_("rider_id", [r.id_rider for r in riders])
             .execute()
         )
+        existing_by_id = {row["rider_id"]: row for row in existing_response.data}
+
+        new_rows = []
+        for r in riders:
+            if r.id_rider not in existing_by_id:
+                new_rows.append({
+                    "rider_id": r.id_rider,
+                    "stat_date": today,
+                    "driver_name": r.driver_name,
+                    "phone": r.phone,
+                    "zone": r.zone,
+                    "complete_hours": "",
+                    "complete_order": "",
+                    "installments": "",
+                    "wallet": "",
+                    "notes": "",
+                })
+
+        if new_rows:
+            client.table(self.TABLE_NAME).upsert(
+                new_rows, on_conflict="rider_id,stat_date", ignore_duplicates=True
+            ).execute()
+
+        for r in riders:
+            existing = existing_by_id.get(r.id_rider)
+            if not existing:
+                continue
+            patch = {}
+            if not existing.get("driver_name") and r.driver_name:
+                patch["driver_name"] = r.driver_name
+            if not existing.get("phone") and r.phone:
+                patch["phone"] = r.phone
+            if not existing.get("zone") and r.zone:
+                patch["zone"] = r.zone
+            if patch:
+                patch["rider_id"] = r.id_rider
+                patch["stat_date"] = today
+                client.table(self.TABLE_NAME).upsert(patch, on_conflict="rider_id,stat_date").execute()
 
     def get_for_rider(self, rider_id: str, stat_date: str):
         response = (
@@ -165,5 +209,6 @@ class RiderStatsRepository(SupabaseRepository):
             driver_name=row.get("driver_name") or "",
             phone=row.get("phone") or "",
             zone=row.get("zone") or "",
+            notes=row.get("notes") or "",
             stat_date=row.get("stat_date", ""),
         )

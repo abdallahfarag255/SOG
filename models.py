@@ -16,6 +16,7 @@ class Rider:
     wallet: str = ""
     equation: str = ""
     equation_sign: str = ""
+    notes: str = ""
 
 
 @dataclass
@@ -28,6 +29,7 @@ class RiderStats:
     driver_name: str = ""
     phone: str = ""
     zone: str = ""
+    notes: str = ""
     stat_date: str = ""
 
 
@@ -38,4 +40,5 @@ class ImageAnalysis:
     original_name: str
     text_variants: Optional[list] = None
     recognized_installments: str = ""
+    recognized_hours: str = ""
     error: Optional[Exception] = None

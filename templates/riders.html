@@ -38,6 +38,18 @@
         .eq-positive { background: #f8d7da; }
         .eq-negative { background: #d4edda; }
 
+        .note-input {
+            width: 100%;
+            padding: 3px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 11px;
+            box-sizing: border-box;
+        }
+        .note-input.note-saved { border-color: #2e7d32; }
+        .note-input.note-error { border-color: #e53935; }
+
         .filter-bar {
             display: flex;
             gap: 10px;
@@ -173,14 +185,15 @@
         <thead>
             <tr>
                 <th>ADD</th>
+                <th>Notes</th>
                 <th>Equation</th>
                 <th>Installments</th>
                 <th>Wallet</th>
                 <th>Complete Order</th>
                 <th>Complete Hours</th>
                 <th>Zone</th>
-                {% if is_today %}
                 <th>Rent Remaining</th>
+                {% if is_today %}
                 <th>State</th>
                 {% endif %}
                 <th>Phone Number</th>
@@ -195,14 +208,17 @@
                     <button type="button" class="add-photo-btn" title="إضافة صور"
                         data-rider-id="{{ r.id_rider }}" data-driver-name="{{ r.driver_name }}" data-phone="{{ r.phone }}">+</button>
                 </td>
+                <td>
+                    <input type="text" class="note-input" data-rider-id="{{ r.id_rider }}" value="{{ r.notes }}" placeholder="ملاحظة...">
+                </td>
                 <td class="{% if r.equation_sign == 'positive' %}eq-positive{% elif r.equation_sign == 'negative' %}eq-negative{% endif %}">{{ r.equation }}</td>
                 <td>{{ r.installments }}</td>
                 <td>{{ r.wallet }}</td>
                 <td>{{ r.complete_order }}</td>
                 <td>{{ r.complete_hours }}</td>
                 <td>{{ r.zone }}</td>
-                {% if is_today %}
                 <td>{{ r.rent_remaining }}</td>
+                {% if is_today %}
                 <td>{{ r.state }}</td>
                 {% endif %}
                 <td>{{ r.phone }}</td>
@@ -239,6 +255,27 @@
             if (btn) {
                 openPhotosModal(btn.dataset.riderId, btn.dataset.driverName, btn.dataset.phone);
             }
+        });
+
+        document.getElementById('ridersBody').addEventListener('focusout', function (e) {
+            var input = e.target.closest('.note-input');
+            if (!input) return;
+
+            var body = new URLSearchParams();
+            body.set('stat_date', "{{ selected_date }}");
+            body.set('notes', input.value);
+
+            var base = "{{ url_for('rider_note_save', rider_id='RIDER_ID') }}";
+            fetch(base.replace('RIDER_ID', input.dataset.riderId), { method: 'POST', body: body })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    input.classList.remove('note-saved', 'note-error');
+                    input.classList.add(data.status === 'ok' ? 'note-saved' : 'note-error');
+                })
+                .catch(function () {
+                    input.classList.remove('note-saved');
+                    input.classList.add('note-error');
+                });
         });
 
         document.getElementById('dayLabel').addEventListener('click', function () {
@@ -316,5 +353,7 @@
         }, 5 * 60 * 1000);
         {% endif %}
     </script>
+
+    <p style="text-align:center; color:#999; font-size:11px; margin-top:24px;">v{{ app_version }}</p>
 </body>
 </html>

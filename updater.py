@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import shutil
@@ -24,18 +25,30 @@ class Updater:
             request = urllib.request.Request(RELEASES_API_URL, headers={"Accept": "application/vnd.github+json"})
             with urllib.request.urlopen(request, timeout=5) as response:
                 release = json.loads(response.read())
-        except Exception:
+        except Exception as exc:
+            self._log(f"update check failed: {exc!r}")
             return None
 
         latest_version = release.get("tag_name", "").lstrip("v")
+        self._log(f"current={self._current_version} latest={latest_version}")
         if not latest_version or not self._is_newer(latest_version, self._current_version):
             return None
 
         asset = next((a for a in release.get("assets", []) if a["name"].endswith(".zip")), None)
         if not asset:
+            self._log("update found but no .zip asset attached to the release")
             return None
 
         return asset["browser_download_url"], latest_version
+
+    def _log(self, message: str) -> None:
+        try:
+            log_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(__file__)
+            log_path = os.path.join(log_dir, "update_check.log")
+            with open(log_path, "a", encoding="utf-8") as log_file:
+                log_file.write(f"{datetime.datetime.now().isoformat()} {message}\n")
+        except Exception:
+            pass
 
     def apply_update(self, download_url: str, progress_callback=None) -> bool:
         """Downloads the update, then hands off to a helper script that replaces this

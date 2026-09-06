@@ -23,6 +23,7 @@ alter table rider_stats add primary key (rider_id, stat_date);
 alter table rider_stats add column if not exists driver_name text;
 alter table rider_stats add column if not exists phone text;
 alter table rider_stats add column if not exists zone text;
+alter table rider_stats add column if not exists notes text;
 
 create table if not exists users (
     id uuid primary key default gen_random_uuid(),

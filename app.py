@@ -14,6 +14,14 @@ UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
+# We run several tesseract.exe processes at once (OCR passes + digit
+# recognition). Tesseract's own internal multithreading then oversubscribes
+# the CPU and makes recognition mildly nondeterministic under that
+# concurrent load - the same image can read correctly in isolation but
+# differently when several passes race together. Capping each process to
+# one internal thread removes that contention.
+os.environ.setdefault("OMP_THREAD_LIMIT", "1")
+
 from auth_service import AuthService
 from config import Config
 from digit_recognizer import DigitRecognizer
@@ -21,6 +29,7 @@ from models import ImageAnalysis
 from ocr_engine import OCREngine
 from ocr_job_store import OCRJobStore
 from rider_service import ArabicDateFormatter, ImageUploadValidator, RiderService
+from version import APP_VERSION
 from sheets_repository import GoogleSheetsRepository
 from supabase_repository import (
     DigitTemplateRepository,
@@ -39,6 +48,9 @@ def _resolve_tesseract_cmd() -> str:
         bundled = os.path.join(sys._MEIPASS, "tesseract_bin", "tesseract.exe")
         if os.path.isfile(bundled):
             return bundled
+    bundled = os.path.join(BASE_DIR, "tesseract_bin", "tesseract.exe")
+    if os.path.isfile(bundled):
+        return bundled
     return None
 
 
@@ -138,7 +150,20 @@ def riders():
         selected_date_display=ArabicDateFormatter.format(selected_date),
         prev_date=(selected_date - timedelta(days=1)).isoformat(),
         next_date=(selected_date + timedelta(days=1)).isoformat(),
+        app_version=APP_VERSION,
     )
+
+
+@app.route("/riders/<rider_id>/notes/save", methods=["POST"])
+@login_required
+def rider_note_save(rider_id):
+    stat_date = request.form.get("stat_date") or date.today().isoformat()
+    notes = request.form.get("notes", "")
+    try:
+        rider_service.save_note(rider_id, stat_date, notes)
+        return jsonify({"status": "ok"})
+    except Exception as exc:
+        return jsonify({"status": "error", "message": str(exc)}), 500
 
 
 @app.route("/riders/<rider_id>/photos")
@@ -245,7 +270,7 @@ def rider_stats_save(rider_id):
         )
         flash("تم الحفظ بنجاح")
         threading.Thread(
-            target=rider_service.learn_from_images, args=(images, installments), daemon=True
+            target=rider_service.learn_from_images, args=(images, installments, complete_hours), daemon=True
         ).start()
     except Exception as exc:
         flash(f"فشل الحفظ: {exc}")
