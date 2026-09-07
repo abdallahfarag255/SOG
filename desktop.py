@@ -19,6 +19,10 @@ class DesktopApp:
         if self._apply_pending_update():
             return
 
+        # pywebview cancels file downloads by default (e.g. the Export File
+        # button) - this lets the OS "Save As" dialog handle them instead.
+        webview.settings['ALLOW_DOWNLOADS'] = True
+
         threading.Thread(target=self._serve, daemon=True).start()
         self._wait_until_ready()
         webview.create_window(
