@@ -21,7 +21,10 @@ class DesktopApp:
 
         threading.Thread(target=self._serve, daemon=True).start()
         self._wait_until_ready()
-        webview.create_window("SOG Monitoring", f"http://127.0.0.1:{self._port}", width=1200, height=800, maximized=True)
+        webview.create_window(
+            "SOG Monitoring", f"http://127.0.0.1:{self._port}",
+            width=1200, height=800, maximized=True, text_select=True,
+        )
         webview.start()
 
     def _wait_until_ready(self, timeout: float = 15.0) -> None:

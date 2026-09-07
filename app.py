@@ -5,7 +5,7 @@ import uuid
 from datetime import date, timedelta
 
 from dotenv import load_dotenv
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 from werkzeug.utils import secure_filename
 
 BASE_DIR = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(__file__)
@@ -23,6 +23,7 @@ os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 
 from config import Config
 from digit_recognizer import DigitRecognizer
+from excel_exporter import RidersExcelExporter
 from models import ImageAnalysis
 from ocr_engine import OCREngine
 from ocr_job_store import OCRJobStore
@@ -91,14 +92,18 @@ def index():
 MIN_ARCHIVE_DATE = date(2026, 9, 5)
 
 
-@app.route("/riders")
-def riders():
+def _resolve_selected_date():
     today = date.today()
     selected_str = request.args.get("date") or today.isoformat()
     selected_date = date.fromisoformat(selected_str)
     if selected_date < MIN_ARCHIVE_DATE:
         selected_date = MIN_ARCHIVE_DATE
-    is_today = selected_date == today
+    return selected_date, selected_date == today
+
+
+@app.route("/riders")
+def riders():
+    selected_date, is_today = _resolve_selected_date()
 
     try:
         if is_today:
@@ -123,6 +128,28 @@ def riders():
         can_go_prev=selected_date > MIN_ARCHIVE_DATE,
         min_archive_date=MIN_ARCHIVE_DATE.isoformat(),
         app_version=APP_VERSION,
+    )
+
+
+@app.route("/riders/export")
+def riders_export():
+    selected_date, is_today = _resolve_selected_date()
+
+    try:
+        if is_today:
+            rows = rider_service.get_live_riders()
+        else:
+            rows = rider_service.get_archived_riders(selected_date.isoformat())
+    except Exception as exc:
+        flash(f"تعذر تحميل البيانات: {exc}")
+        return redirect(url_for("riders", date=selected_date.isoformat()))
+
+    content = RidersExcelExporter.export(rows, is_today)
+    filename = f"SOG-{selected_date.isoformat()}.xlsx"
+    return Response(
+        content,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
