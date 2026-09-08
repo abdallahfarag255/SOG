@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>المعادلة</title>
+    <title>Equation</title>
     <style>
         * { box-sizing: border-box; }
         body { font-family: Tahoma, Arial, sans-serif; width: 100%; margin: 0 auto; padding: 24px 32px; max-width: 100%; overflow-x: hidden; }
@@ -42,7 +42,7 @@
 </head>
 <body>
     <a class="back-link" href="{{ url_for('riders') }}">&rarr; رجوع لصفحة الركاب</a>
-    <h1 style="text-align:center;">المعادلة</h1>
+    <h1 style="text-align:center;">Equation</h1>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -69,9 +69,9 @@
             </div>
 
             <div class="panel wallet-panel">
-                <label>يوم الـ Wallet</label>
+                <label>Wallet</label>
                 <input type="date" name="wallet_date" value="{{ wallet_date }}" min="{{ min_archive_date }}" max="{{ max_date }}">
-                <button type="submit" class="calc-btn">احسب</button>
+                <button type="submit" class="calc-btn">Done</button>
             </div>
         </div>
     </form>
@@ -81,9 +81,9 @@
     <table>
         <thead>
             <tr>
-                <th>المعادلة (Wallet - Installments)</th>
+                <th>Equation (Wallet - Installments)</th>
+                <th>Installments</th>
                 <th>Wallet</th>
-                <th>مجموع Installments</th>
                 <th>ID Rider</th>
                 <th>Driver Name</th>
             </tr>
@@ -92,8 +92,8 @@
             {% for r in rows %}
             <tr>
                 <td class="{% if r.equation > 0 %}eq-positive{% elif r.equation < 0 %}eq-negative{% endif %}">{{ "%.2f"|format(r.equation) }}</td>
-                <td>{{ "%.2f"|format(r.wallet) }}</td>
                 <td>{{ "%.2f"|format(r.installments_sum) }}</td>
+                <td>{{ "%.2f"|format(r.wallet) }}</td>
                 <td>{{ r.rider_id }}</td>
                 <td>{{ r.driver_name }}</td>
             </tr>

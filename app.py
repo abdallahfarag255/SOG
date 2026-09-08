@@ -164,7 +164,7 @@ def riders_equation():
         try:
             rows = rider_service.get_equation_report(selected_dates, wallet_date)
         except Exception as exc:
-            flash(f"تعذر حساب المعادلة: {exc}")
+            flash(f"تعذر حساب الـ Equation: {exc}")
 
     return render_template(
         "equation.html",
