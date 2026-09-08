@@ -81,21 +81,21 @@
     <table>
         <thead>
             <tr>
-                <th>Driver Name</th>
-                <th>ID Rider</th>
-                <th>مجموع Installments</th>
-                <th>Wallet</th>
                 <th>المعادلة (Wallet - Installments)</th>
+                <th>Wallet</th>
+                <th>مجموع Installments</th>
+                <th>ID Rider</th>
+                <th>Driver Name</th>
             </tr>
         </thead>
         <tbody>
             {% for r in rows %}
             <tr>
-                <td>{{ r.driver_name }}</td>
-                <td>{{ r.rider_id }}</td>
-                <td>{{ "%.2f"|format(r.installments_sum) }}</td>
-                <td>{{ "%.2f"|format(r.wallet) }}</td>
                 <td class="{% if r.equation > 0 %}eq-positive{% elif r.equation < 0 %}eq-negative{% endif %}">{{ "%.2f"|format(r.equation) }}</td>
+                <td>{{ "%.2f"|format(r.wallet) }}</td>
+                <td>{{ "%.2f"|format(r.installments_sum) }}</td>
+                <td>{{ r.rider_id }}</td>
+                <td>{{ r.driver_name }}</td>
             </tr>
             {% endfor %}
         </tbody>
