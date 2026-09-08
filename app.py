@@ -153,6 +153,30 @@ def riders_export():
     )
 
 
+@app.route("/riders/equation")
+def riders_equation():
+    dates_param = request.args.get("dates", "")
+    selected_dates = sorted({d for d in dates_param.split(",") if d})
+    wallet_date = request.args.get("wallet_date", "")
+
+    rows = []
+    if selected_dates and wallet_date:
+        try:
+            rows = rider_service.get_equation_report(selected_dates, wallet_date)
+        except Exception as exc:
+            flash(f"تعذر حساب المعادلة: {exc}")
+
+    return render_template(
+        "equation.html",
+        rows=rows,
+        selected_dates=selected_dates,
+        wallet_date=wallet_date,
+        min_archive_date=MIN_ARCHIVE_DATE.isoformat(),
+        max_date=date.today().isoformat(),
+        app_version=APP_VERSION,
+    )
+
+
 @app.route("/riders/<rider_id>/notes/save", methods=["POST"])
 def rider_note_save(rider_id):
     stat_date = request.form.get("stat_date") or date.today().isoformat()

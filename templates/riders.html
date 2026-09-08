@@ -145,7 +145,9 @@
 </head>
 <body>
     <a href="{{ url_for('riders_export', date=selected_date) }}"
-        style="float:left; background:#2e7d32; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Export File</a>
+        style="float:left; margin-left:8px; background:#2e7d32; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Export File</a>
+    <a href="{{ url_for('riders_equation') }}"
+        style="float:left; background:#1565c0; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Equation</a>
     <h1 style="text-align:center;">SOG Monitoring</h1>
 
     {% with messages = get_flashed_messages() %}

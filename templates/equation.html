@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>المعادلة</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; width: 100%; margin: 0 auto; padding: 24px 32px; max-width: 100%; overflow-x: hidden; }
+        .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .back-link { display: inline-block; margin-bottom: 12px; color: #555; text-decoration: none; font-size: 13px; }
+
+        .panels { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+        .panel { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; }
+
+        .cal-panel { width: 320px; }
+        .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .cal-header button { border: none; background: #f4f4f4; border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+        .cal-label { font-weight: bold; }
+        .cal-weekdays, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+        .cal-weekdays { font-size: 11px; color: #888; margin-bottom: 4px; }
+        .cal-day { padding: 8px 0; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .cal-day:hover { background: #f0f0f0; }
+        .cal-day.selected { background: #2e7d32; color: #fff; font-weight: bold; }
+        .cal-day.disabled { color: #ccc; cursor: not-allowed; }
+        .cal-footer { margin-top: 10px; font-size: 12px; color: #555; }
+
+        .wallet-panel { width: 260px; }
+        .wallet-panel label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+        .wallet-panel input[type="date"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+
+        .calc-btn { background: #2e7d32; color: #fff; border: none; border-radius: 6px; padding: 10px 20px; font-size: 14px; cursor: pointer; margin-top: 16px; }
+        .calc-btn:hover { background: #1b5e20; }
+
+        .table-scroll { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; font-size: 13px; }
+        th { background: #f4f4f4; }
+        .eq-positive { background: #f8d7da; }
+        .eq-negative { background: #d4edda; }
+    </style>
+</head>
+<body>
+    <a class="back-link" href="{{ url_for('riders') }}">&rarr; رجوع لصفحة الركاب</a>
+    <h1 style="text-align:center;">المعادلة</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="get" action="{{ url_for('riders_equation') }}">
+        <div class="panels">
+            <div class="panel cal-panel">
+                <div class="cal-header">
+                    <button type="button" id="prevMonth">الشهر السابق</button>
+                    <span class="cal-label" id="calLabel"></span>
+                    <button type="button" id="nextMonth">الشهر التالي</button>
+                </div>
+                <div class="cal-weekdays">
+                    <span>أحد</span><span>اثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
+                </div>
+                <div class="cal-grid" id="calGrid"></div>
+                <div class="cal-footer">الأيام المختارة: <span id="selectedCount">0</span></div>
+                <input type="hidden" name="dates" id="datesInput" value="{{ selected_dates|join(',') }}">
+            </div>
+
+            <div class="panel wallet-panel">
+                <label>يوم الـ Wallet</label>
+                <input type="date" name="wallet_date" value="{{ wallet_date }}" min="{{ min_archive_date }}" max="{{ max_date }}">
+                <button type="submit" class="calc-btn">احسب</button>
+            </div>
+        </div>
+    </form>
+
+    {% if rows %}
+    <div class="table-scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Driver Name</th>
+                <th>ID Rider</th>
+                <th>مجموع Installments</th>
+                <th>Wallet</th>
+                <th>المعادلة (Wallet - Installments)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.rider_id }}</td>
+                <td>{{ "%.2f"|format(r.installments_sum) }}</td>
+                <td>{{ "%.2f"|format(r.wallet) }}</td>
+                <td class="{% if r.equation > 0 %}eq-positive{% elif r.equation < 0 %}eq-negative{% endif %}">{{ "%.2f"|format(r.equation) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% elif selected_dates and wallet_date %}
+    <p style="text-align:center; color:#888;">مفيش بيانات للأيام والاختيارات دي.</p>
+    {% endif %}
+
+    <p style="text-align:center; color:#999; font-size:11px; margin-top:24px;">v{{ app_version }}</p>
+
+    <script>
+        const MIN_DATE = "{{ min_archive_date }}";
+        const MAX_DATE = "{{ max_date }}";
+        const selectedDates = new Set({{ selected_dates|tojson }});
+
+        let viewYear, viewMonth;
+        (function initView() {
+            const sorted = [...selectedDates].sort();
+            const base = sorted.length ? sorted[sorted.length - 1] : MAX_DATE;
+            const [y, m] = base.split('-').map(Number);
+            viewYear = y;
+            viewMonth = m - 1;
+        })();
+
+        function pad(n) { return String(n).padStart(2, '0'); }
+        function isoDate(y, m, d) { return `${y}-${pad(m + 1)}-${pad(d)}`; }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calGrid');
+            grid.innerHTML = '';
+            const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+            document.getElementById('calLabel').textContent = monthNames[viewMonth] + ' ' + viewYear;
+
+            const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+            const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+            for (let i = 0; i < firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+            for (let d = 1; d <= daysInMonth; d++) {
+                const iso = isoDate(viewYear, viewMonth, d);
+                const cell = document.createElement('div');
+                cell.className = 'cal-day';
+                cell.textContent = d;
+                if (iso < MIN_DATE || iso > MAX_DATE) {
+                    cell.classList.add('disabled');
+                } else {
+                    cell.addEventListener('click', () => toggleDate(iso, cell));
+                }
+                if (selectedDates.has(iso)) cell.classList.add('selected');
+                grid.appendChild(cell);
+            }
+            updateSummary();
+        }
+
+        function toggleDate(iso, cell) {
+            if (selectedDates.has(iso)) {
+                selectedDates.delete(iso);
+                cell.classList.remove('selected');
+            } else {
+                selectedDates.add(iso);
+                cell.classList.add('selected');
+            }
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('datesInput').value = [...selectedDates].sort().join(',');
+            document.getElementById('selectedCount').textContent = selectedDates.size;
+        }
+
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            viewMonth--;
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            renderCalendar();
+        });
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            viewMonth++;
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            renderCalendar();
+        });
+
+        renderCalendar();
+    </script>
+</body>
+</html>

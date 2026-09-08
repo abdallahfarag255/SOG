@@ -107,6 +107,43 @@ class RiderService:
     def save_note(self, rider_id: str, stat_date: str, notes: str) -> None:
         self._stats_repo.update_notes(rider_id, stat_date, notes)
 
+    def get_equation_report(self, selected_dates: list, wallet_date: str) -> list:
+        """For each rider active on any of selected_dates: sum their
+        installments across those dates, paired against their wallet on
+        wallet_date. equation = wallet - installments_sum."""
+        rows = self._stats_repo.get_by_dates(selected_dates)
+
+        riders = {}
+        for row in rows:
+            entry = riders.setdefault(row.rider_id, {"driver_name": row.driver_name, "installments_sum": 0.0})
+            entry["installments_sum"] += self._safe_float(row.installments)
+            if row.driver_name:
+                entry["driver_name"] = row.driver_name
+
+        wallet_by_id = {}
+        if wallet_date:
+            wallet_by_id = {r.rider_id: self._safe_float(r.wallet) for r in self._stats_repo.get_by_date(wallet_date)}
+
+        result = []
+        for rider_id, info in riders.items():
+            wallet = wallet_by_id.get(rider_id, 0.0)
+            result.append({
+                "rider_id": rider_id,
+                "driver_name": info["driver_name"],
+                "installments_sum": info["installments_sum"],
+                "wallet": wallet,
+                "equation": wallet - info["installments_sum"],
+            })
+        result.sort(key=lambda r: r["driver_name"])
+        return result
+
+    @staticmethod
+    def _safe_float(value: str) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
     def _analyze_image(self, analysis: ImageAnalysis) -> ImageAnalysis:
         with ThreadPoolExecutor(max_workers=3) as executor:
             variants_future = executor.submit(self._ocr_engine.extract_text_variants, analysis.filepath)

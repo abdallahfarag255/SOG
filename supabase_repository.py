@@ -172,6 +172,17 @@ class RiderStatsRepository(SupabaseRepository):
         )
         return [self._row_to_stats(row) for row in response.data]
 
+    def get_by_dates(self, stat_dates: list) -> list:
+        if not stat_dates:
+            return []
+        response = (
+            self._get_client().table(self.TABLE_NAME)
+            .select("*")
+            .in_("stat_date", stat_dates)
+            .execute()
+        )
+        return [self._row_to_stats(row) for row in response.data]
+
     def remove_stale(self, active_rider_ids: list) -> None:
         if not active_rider_ids:
             return
