@@ -166,9 +166,12 @@ def riders_equation():
         except Exception as exc:
             flash(f"تعذر حساب الـ Equation: {exc}")
 
+    zones = sorted({r["zone"] for r in rows if r["zone"]})
+
     return render_template(
         "equation.html",
         rows=rows,
+        zones=zones,
         selected_dates=selected_dates,
         wallet_date=wallet_date,
         min_archive_date=MIN_ARCHIVE_DATE.isoformat(),

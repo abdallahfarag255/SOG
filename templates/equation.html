@@ -38,6 +38,9 @@
         th { background: #f4f4f4; }
         .eq-positive { background: #f8d7da; }
         .eq-negative { background: #d4edda; }
+
+        .filter-bar { margin-bottom: 12px; }
+        .filter-bar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -79,6 +82,14 @@
     </form>
 
     {% if rows %}
+    <div class="filter-bar">
+        <select id="zoneFilter" onchange="filterRows()">
+            <option value="">كل المناطق</option>
+            {% for z in zones %}
+            <option value="{{ z }}">{{ z }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <div class="table-scroll">
     <table>
         <thead>
@@ -87,16 +98,18 @@
                 <th>Installments</th>
                 <th>Wallet</th>
                 <th>ID Rider</th>
+                <th>Zone</th>
                 <th>Driver Name</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="resultsBody">
             {% for r in rows %}
-            <tr>
+            <tr data-zone="{{ r.zone }}">
                 <td class="{% if r.equation > 0 %}eq-positive{% elif r.equation < 0 %}eq-negative{% endif %}">{{ "%.2f"|format(r.equation) }}</td>
                 <td>{{ "%.2f"|format(r.installments_sum) }}</td>
                 <td>{{ "%.2f"|format(r.wallet) }}</td>
                 <td>{{ r.rider_id }}</td>
+                <td>{{ r.zone }}</td>
                 <td>{{ r.driver_name }}</td>
             </tr>
             {% endfor %}
@@ -182,6 +195,15 @@
         });
 
         renderCalendar();
+
+        function filterRows() {
+            var zoneEl = document.getElementById('zoneFilter');
+            var zone = zoneEl ? zoneEl.value : '';
+            var rows = document.querySelectorAll('#resultsBody tr');
+            rows.forEach(function (row) {
+                row.style.display = (!zone || row.dataset.zone === zone) ? '' : 'none';
+            });
+        }
     </script>
 </body>
 </html>

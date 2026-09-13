@@ -115,10 +115,12 @@ class RiderService:
 
         riders = {}
         for row in rows:
-            entry = riders.setdefault(row.rider_id, {"driver_name": row.driver_name, "installments_sum": 0.0})
+            entry = riders.setdefault(row.rider_id, {"driver_name": row.driver_name, "zone": row.zone, "installments_sum": 0.0})
             entry["installments_sum"] += self._safe_float(row.installments)
             if row.driver_name:
                 entry["driver_name"] = row.driver_name
+            if row.zone:
+                entry["zone"] = row.zone
 
         wallet_by_id = {}
         if wallet_date:
@@ -130,6 +132,7 @@ class RiderService:
             result.append({
                 "rider_id": rider_id,
                 "driver_name": info["driver_name"],
+                "zone": info["zone"],
                 "installments_sum": info["installments_sum"],
                 "wallet": wallet,
                 "equation": wallet - info["installments_sum"],
