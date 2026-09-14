@@ -44,8 +44,10 @@
     </style>
 </head>
 <body>
+    <a href="{{ url_for('riders_equation_export', dates=selected_dates|join(','), wallet_date=wallet_date) }}"
+        style="float:left; background:#2e7d32; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Export File</a>
     <a href="{{ url_for('riders_equation') }}"
-        style="float:left; background:#c62828; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Clear</a>
+        style="float:left; margin-left:10px; background:#c62828; color:#fff; text-decoration:none; padding:8px 14px; border-radius:6px; font-size:13px;">Clear</a>
     <a class="back-link" href="{{ url_for('riders') }}">&rarr; رجوع لصفحة الركاب</a>
     <h1 style="text-align:center;">Equation</h1>
 

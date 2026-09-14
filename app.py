@@ -23,7 +23,7 @@ os.environ.setdefault("OMP_THREAD_LIMIT", "1")
 
 from config import Config
 from digit_recognizer import DigitRecognizer
-from excel_exporter import RidersExcelExporter
+from excel_exporter import EquationExcelExporter, RidersExcelExporter
 from models import ImageAnalysis
 from ocr_engine import OCREngine
 from ocr_job_store import OCRJobStore
@@ -177,6 +177,31 @@ def riders_equation():
         min_archive_date=MIN_ARCHIVE_DATE.isoformat(),
         max_date=date.today().isoformat(),
         app_version=APP_VERSION,
+    )
+
+
+@app.route("/riders/equation/export")
+def riders_equation_export():
+    dates_param = request.args.get("dates", "")
+    selected_dates = sorted({d for d in dates_param.split(",") if d})
+    wallet_date = request.args.get("wallet_date", "")
+
+    if not selected_dates or not wallet_date:
+        flash("اختار الأيام وتاريخ الـ Wallet الأول")
+        return redirect(url_for("riders_equation", dates=dates_param, wallet_date=wallet_date))
+
+    try:
+        rows = rider_service.get_equation_report(selected_dates, wallet_date)
+    except Exception as exc:
+        flash(f"تعذر تصدير الملف: {exc}")
+        return redirect(url_for("riders_equation", dates=dates_param, wallet_date=wallet_date))
+
+    content = EquationExcelExporter.export(rows)
+    filename = f"Equation-{wallet_date}.xlsx"
+    return Response(
+        content,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
 
 
