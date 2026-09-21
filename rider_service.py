@@ -216,7 +216,7 @@ class RiderService:
         return merged_stats, saved_count, errors
 
     def _learn_from_image(self, filename: str, installments: str, complete_hours: str) -> None:
-        filepath = os.path.join(self._upload_folder, filename)
+        filepath = os.path.join(self._upload_folder, os.path.basename(filename))
         try:
             self._digit_recognizer.learn_earned_amount(filepath, installments)
         except Exception:

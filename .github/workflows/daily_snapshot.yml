@@ -16,6 +16,9 @@ jobs:
       - run: pip install gspread google-auth supabase
       - run: python daily_snapshot.py
         env:
+          # Same day boundary as the desktop app (Cairo), not UTC, so a rider
+          # who turns Active after local midnight isn't filed under yesterday.
+          TZ: Africa/Cairo
           GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -27,7 +27,7 @@
 </head>
 <body>
     <h1>{{ driver_name }}</h1>
-    <p style="margin-top:-10px; color:#666;">{{ rider_id }} &mdash; {{ stat_date }}</p>
+    <p style="margin-top:-10px; color:#666;">{{ rider_id }}{% if phone %} &mdash; {{ phone }}{% endif %} &mdash; {{ stat_date }}</p>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}

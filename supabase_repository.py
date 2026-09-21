@@ -16,6 +16,21 @@ class SupabaseRepository:
             self._client = create_client(self._url, self._key)
         return self._client
 
+    PAGE_SIZE = 1000
+
+    def _select_all(self, build_query) -> list:
+        # Supabase returns at most 1000 rows per request and silently drops
+        # the rest, so page through until a short page comes back. The query
+        # must be ordered so the pages don't overlap or skip rows.
+        rows = []
+        start = 0
+        while True:
+            batch = build_query().range(start, start + self.PAGE_SIZE - 1).execute().data
+            rows.extend(batch)
+            if len(batch) < self.PAGE_SIZE:
+                return rows
+            start += self.PAGE_SIZE
+
 
 class ExtractedImageRepository(SupabaseRepository):
     TABLE_NAME = "extracted_data"
@@ -33,14 +48,14 @@ class DigitTemplateRepository(SupabaseRepository):
     TABLE_NAME = "digit_templates"
 
     def get_all(self) -> dict:
-        response = (
+        rows = self._select_all(lambda: (
             self._get_client().table(self.TABLE_NAME)
             .select("id, label, canvas_data")
             .order("created_at")
-            .execute()
-        )
+            .order("id")
+        ))
         templates = {}
-        for row in response.data:
+        for row in rows:
             templates.setdefault(row["label"], []).append(row)
         return templates
 
@@ -159,29 +174,35 @@ class RiderStatsRepository(SupabaseRepository):
 
     def get_all_today(self) -> dict:
         today = date.today().isoformat()
-        response = self._get_client().table(self.TABLE_NAME).select("*").eq("stat_date", today).execute()
-        return {row["rider_id"]: self._row_to_stats(row) for row in response.data}
+        rows = self._select_all(lambda: (
+            self._get_client().table(self.TABLE_NAME)
+            .select("*")
+            .eq("stat_date", today)
+            .order("rider_id")
+        ))
+        return {row["rider_id"]: self._row_to_stats(row) for row in rows}
 
     def get_by_date(self, stat_date: str) -> list:
-        response = (
+        rows = self._select_all(lambda: (
             self._get_client().table(self.TABLE_NAME)
             .select("*")
             .eq("stat_date", stat_date)
             .order("driver_name")
-            .execute()
-        )
-        return [self._row_to_stats(row) for row in response.data]
+            .order("rider_id")
+        ))
+        return [self._row_to_stats(row) for row in rows]
 
     def get_by_dates(self, stat_dates: list) -> list:
         if not stat_dates:
             return []
-        response = (
+        rows = self._select_all(lambda: (
             self._get_client().table(self.TABLE_NAME)
             .select("*")
             .in_("stat_date", stat_dates)
-            .execute()
-        )
-        return [self._row_to_stats(row) for row in response.data]
+            .order("stat_date")
+            .order("rider_id")
+        ))
+        return [self._row_to_stats(row) for row in rows]
 
     def remove_stale(self, active_rider_ids: list) -> None:
         if not active_rider_ids:

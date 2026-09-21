@@ -1,5 +1,6 @@
 import threading
 import time
+import unicodedata
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -37,51 +38,73 @@ class GoogleSheetsRepository:
     def _get_spreadsheet(self):
         return self._get_client().open_by_key(self._sheet_id)
 
-    def _fetch_zone_by_rider_id(self) -> dict:
-        worksheet = self._get_spreadsheet().worksheet(self.DRIVERS_DATA_SHEET_NAME)
-        values = worksheet.get_all_values()
+    @staticmethod
+    def _clean_id(value) -> str:
+        # Some sheet IDs carry invisible bidi marks (e.g. U+200F) that
+        # str.strip() leaves in place, which would make the same rider
+        # look like two different IDs.
+        return "".join(ch for ch in str(value) if unicodedata.category(ch) != "Cf").strip()
+
+    def _read_tab(self, tab_name: str) -> tuple:
+        values = self._get_spreadsheet().worksheet(tab_name).get_all_values()
         if not values:
+            return [], []
+        return [h.strip() for h in values[0]], values[1:]
+
+    @staticmethod
+    def _cell(row: list, idx: int) -> str:
+        return row[idx].strip() if len(row) > idx else ""
+
+    @staticmethod
+    def _column(header: list, name: str, tab_name: str) -> int:
+        if name not in header:
+            raise ValueError(f'عمود "{name}" مش موجود في تاب "{tab_name}" في الشيت (اتغير اسمه أو اتمسح؟)')
+        return header.index(name)
+
+    def _fetch_rent_by_rider_id(self) -> dict:
+        header, rows = self._read_tab(self.DASHBOARD_SHEET_NAME)
+        if not header:
             return {}
-
-        header = [h.strip() for h in values[0]]
-        id_idx = header.index("Rider ID")
-        zone_idx = header.index("zone")
-
-        zone_by_id = {}
-        for row in values[1:]:
-            rider_id = row[id_idx].strip() if len(row) > id_idx else ""
-            if not rider_id:
-                continue
-            zone_by_id[rider_id] = row[zone_idx].strip() if len(row) > zone_idx else ""
-        return zone_by_id
+        id_idx = self._column(header, "ID Rider", self.DASHBOARD_SHEET_NAME)
+        rent_idx = self._column(header, "Rent Remaining", self.DASHBOARD_SHEET_NAME)
+        return {
+            self._clean_id(row[id_idx]): self._cell(row, rent_idx)
+            for row in rows
+            if len(row) > id_idx and self._clean_id(row[id_idx])
+        }
 
     def _fetch_active_riders(self) -> list:
-        worksheet = self._get_spreadsheet().worksheet(self.DASHBOARD_SHEET_NAME)
-        values = worksheet.get_all_values()
-        if not values:
+        # Identity (name/phone/zone/state) comes from "Drivers Data", keyed
+        # by the rider's ID. The Dashboard tab pulls those columns by row
+        # position, one column at a time, so they can drift apart and show
+        # one rider's ID next to another rider's name. Its rent column is
+        # looked up by ID, so that one is safe to use.
+        header, rows = self._read_tab(self.DRIVERS_DATA_SHEET_NAME)
+        if not header:
             return []
+        tab = self.DRIVERS_DATA_SHEET_NAME
+        id_idx = self._column(header, "Rider ID", tab)
+        name_idx = self._column(header, "Driver Name", tab)
+        phone_idx = self._column(header, "Phone Num.", tab)
+        state_idx = self._column(header, "State", tab)
+        zone_idx = self._column(header, "zone", tab)
 
-        header = [h.strip() for h in values[0]]
-        id_idx = header.index("ID Rider")
-        name_idx = header.index("Driver Name")
-        phone_idx = header.index("Phone Num.")
-        state_idx = header.index("State")
-        rent_idx = header.index("Rent Remaining")
-
-        zone_by_id = self._fetch_zone_by_rider_id()
+        rent_by_id = self._fetch_rent_by_rider_id()
 
         riders = []
-        for row in values[1:]:
-            if len(row) <= state_idx or row[state_idx].strip() != "Active":
+        seen = set()
+        for row in rows:
+            rider_id = self._clean_id(row[id_idx]) if len(row) > id_idx else ""
+            if not rider_id or rider_id in seen or self._cell(row, state_idx) != "Active":
                 continue
-            rider_id = row[id_idx].strip() if len(row) > id_idx else ""
+            seen.add(rider_id)
             riders.append(Rider(
                 id_rider=rider_id,
-                driver_name=row[name_idx].strip() if len(row) > name_idx else "",
-                phone=row[phone_idx].strip() if len(row) > phone_idx else "",
-                state=row[state_idx].strip(),
-                rent_remaining=row[rent_idx].strip() if len(row) > rent_idx else "",
-                zone=zone_by_id.get(rider_id, ""),
+                driver_name=self._cell(row, name_idx),
+                phone=self._cell(row, phone_idx),
+                state=self._cell(row, state_idx),
+                rent_remaining=rent_by_id.get(rider_id, ""),
+                zone=self._cell(row, zone_idx),
             ))
         return riders
 

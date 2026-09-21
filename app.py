@@ -92,10 +92,22 @@ def index():
 MIN_ARCHIVE_DATE = date(2026, 9, 5)
 
 
+def _valid_iso_date(value: str) -> str:
+    """Returns value if it is a real YYYY-MM-DD date, else ''."""
+    try:
+        return date.fromisoformat(value).isoformat()
+    except (TypeError, ValueError):
+        return ""
+
+
+def _equation_params() -> tuple:
+    dates = sorted({d for d in (_valid_iso_date(x) for x in request.args.get("dates", "").split(",")) if d})
+    return dates, _valid_iso_date(request.args.get("wallet_date", ""))
+
+
 def _resolve_selected_date():
     today = date.today()
-    selected_str = request.args.get("date") or today.isoformat()
-    selected_date = date.fromisoformat(selected_str)
+    selected_date = date.fromisoformat(_valid_iso_date(request.args.get("date", "")) or today.isoformat())
     if selected_date < MIN_ARCHIVE_DATE:
         selected_date = MIN_ARCHIVE_DATE
     return selected_date, selected_date == today
@@ -155,9 +167,7 @@ def riders_export():
 
 @app.route("/riders/equation")
 def riders_equation():
-    dates_param = request.args.get("dates", "")
-    selected_dates = sorted({d for d in dates_param.split(",") if d})
-    wallet_date = request.args.get("wallet_date", "")
+    selected_dates, wallet_date = _equation_params()
 
     rows = []
     if selected_dates and wallet_date:
@@ -182,9 +192,8 @@ def riders_equation():
 
 @app.route("/riders/equation/export")
 def riders_equation_export():
-    dates_param = request.args.get("dates", "")
-    selected_dates = sorted({d for d in dates_param.split(",") if d})
-    wallet_date = request.args.get("wallet_date", "")
+    selected_dates, wallet_date = _equation_params()
+    dates_param = ",".join(selected_dates)
 
     if not selected_dates or not wallet_date:
         flash("اختار الأيام وتاريخ الـ Wallet الأول")
