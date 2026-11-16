@@ -204,6 +204,17 @@ class RiderStatsRepository(SupabaseRepository):
         ))
         return [self._row_to_stats(row) for row in rows]
 
+    def get_by_date_range(self, start_date: str, end_date: str) -> list:
+        rows = self._select_all(lambda: (
+            self._get_client().table(self.TABLE_NAME)
+            .select("*")
+            .gte("stat_date", start_date)
+            .lte("stat_date", end_date)
+            .order("stat_date")
+            .order("rider_id")
+        ))
+        return [self._row_to_stats(row) for row in rows]
+
     def remove_stale(self, active_rider_ids: list) -> None:
         if not active_rider_ids:
             return

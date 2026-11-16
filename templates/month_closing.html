@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>تقفيلة الشهر</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Tahoma, Arial, sans-serif; width: 100%; margin: 0 auto; padding: 24px 32px; max-width: 100%; overflow-x: hidden; }
+        .flash { background: #fff3cd; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .back-link { display: inline-block; margin-bottom: 12px; color: #555; text-decoration: none; font-size: 13px; }
+
+        .month-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            border: 1px solid #ddd;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            background: #fff;
+        }
+        .month-nav a, .month-nav span.disabled {
+            padding: 10px 18px;
+            text-decoration: none;
+            color: #333;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .month-nav span.disabled { color: #bbb; }
+        .month-nav a:hover { background: #f4f4f4; }
+        .month-nav .month-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-right: 1px solid #ddd;
+            border-left: 1px solid #ddd;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .today-pill {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: normal;
+        }
+
+        .table-scroll { width: 100%; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: center; font-size: 13px; }
+        th { background: #f4f4f4; }
+    </style>
+</head>
+<body>
+    <a class="back-link" href="{{ url_for('riders') }}">&rarr; رجوع لصفحة الركاب</a>
+    <h1 style="text-align:center;">تقفيلة الشهر</h1>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="month-nav">
+        {% if can_go_next %}
+        <a href="{{ url_for('riders_month_closing', month=next_month) }}">الشهر التالي</a>
+        {% else %}
+        <span class="disabled">الشهر التالي</span>
+        {% endif %}
+        <span class="month-label">
+            {{ month_display }}
+            {% if is_current_month %}
+                <span class="today-pill">الشهر الحالي</span>
+            {% endif %}
+        </span>
+        {% if can_go_prev %}
+        <a href="{{ url_for('riders_month_closing', month=prev_month) }}">الشهر السابق</a>
+        {% else %}
+        <span class="disabled">الشهر السابق</span>
+        {% endif %}
+    </div>
+
+    <p>العدد: {{ rows|length }}</p>
+
+    <div class="table-scroll">
+    <table>
+        <thead>
+            <tr>
+                <th>Phone Number</th>
+                <th>Driver Name</th>
+                <th>ID Rider</th>
+                <th>Zone</th>
+                <th>Total Complete Hours</th>
+                <th>Total Complete Order</th>
+                <th>Total Installments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rows %}
+            <tr>
+                <td>{{ r.phone }}</td>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.rider_id }}</td>
+                <td>{{ r.zone }}</td>
+                <td>{{ r.total_hours }}</td>
+                <td>{{ r.total_orders }}</td>
+                <td>{{ "%.2f"|format(r.total_installments) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+
+    <p style="text-align:center; color:#999; font-size:11px; margin-top:24px;">v{{ app_version }}</p>
+</body>
+</html>

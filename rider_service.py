@@ -1,4 +1,5 @@
 import os
+import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import date
@@ -146,6 +147,111 @@ class RiderService:
             return float(value)
         except (TypeError, ValueError):
             return 0.0
+
+    @staticmethod
+    def _safe_int(value: str) -> int:
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return 0
+
+    HOURS_PATTERN = re.compile(r"^(\d+)\s*س\s*(\d+)\s*د$")
+    LEGACY_HOURS_PATTERN = re.compile(r"^(\d*)\.?(\d*)$")
+
+    @classmethod
+    def _hours_to_minutes(cls, value: str) -> int:
+        value = (value or "").strip()
+        if not value:
+            return 0
+
+        match = cls.HOURS_PATTERN.match(value)
+        if match:
+            return int(match.group(1)) * 60 + int(match.group(2))
+
+        parsed = cls._normalize_legacy_hours(value)
+        if parsed is None:
+            return 0
+        hours, minutes = parsed
+        return hours * 60 + minutes
+
+    @classmethod
+    def _normalize_legacy_hours(cls, value: str):
+        """Best-effort recovery for older/garbled Complete Hours entries
+        that don't match the "Hس Mد" format. Older manual entries used
+        "H.MM" / "H.M" - the digits after the dot are the literal minute
+        count, not a decimal fraction (e.g. "9.56" is 9h56m, "5.4" is
+        5h4m). Also recovers common typing/OCR slips: a stray "," or ">"
+        standing in for the dot ("3,16", "3>16" -> "3.16"), a comma
+        inserted next to an already-present dot ("11,.48" -> "11.48"),
+        trailing junk after the number ("0د" -> "0"), and a doubled
+        leading dot (".5.44" -> "5.44"). Returns (hours, minutes), or
+        None if nothing safe can be recovered."""
+        v = value.strip()
+
+        if "." not in v:
+            v = v.replace(",", ".").replace(">", ".")
+        v = v.replace(",", "")
+        v = re.sub(r"^[^\d.]+", "", v)
+        v = re.sub(r"[^\d.]+$", "", v)
+        # Strip a spurious extra leading dot (".5.44" -> "5.44"), but leave
+        # a single leading dot alone - that one IS the decimal point and
+        # means "0 hours" (".37" -> 0h37m, not 37h0m).
+        if v.startswith(".") and v.count(".") > 1:
+            v = v[1:]
+        if not v:
+            return None
+
+        match = cls.LEGACY_HOURS_PATTERN.match(v)
+        if not match:
+            return None
+        int_part, frac_part = match.groups()
+        if not int_part and not frac_part:
+            return None
+
+        hours = int(int_part) if int_part else 0
+        if frac_part and len(frac_part) <= 2 and int(frac_part) < 60:
+            return hours, int(frac_part)
+        # A fractional part we can't read as literal minutes (missing, or
+        # >= 60, e.g. "5.95") - the hours are still trustworthy, so keep
+        # those and drop the ambiguous remainder instead of guessing.
+        return hours, 0
+
+    def get_month_closing_report(self, start_date: str, end_date: str) -> list:
+        """For each rider with any row between start_date and end_date
+        (inclusive): sum their Complete Hours, Complete Order, and
+        Installments across those days."""
+        rows = self._stats_repo.get_by_date_range(start_date, end_date)
+
+        riders = {}
+        for row in rows:
+            entry = riders.setdefault(row.rider_id, {
+                "driver_name": row.driver_name, "phone": row.phone, "zone": row.zone,
+                "total_minutes": 0, "total_orders": 0, "total_installments": 0.0,
+            })
+            if row.driver_name:
+                entry["driver_name"] = row.driver_name
+            if row.phone:
+                entry["phone"] = row.phone
+            if row.zone:
+                entry["zone"] = row.zone
+            entry["total_minutes"] += self._hours_to_minutes(row.complete_hours)
+            entry["total_orders"] += self._safe_int(row.complete_order)
+            entry["total_installments"] += self._safe_float(row.installments)
+
+        result = []
+        for rider_id, info in riders.items():
+            hours, minutes = divmod(info["total_minutes"], 60)
+            result.append({
+                "rider_id": rider_id,
+                "driver_name": info["driver_name"],
+                "phone": info["phone"],
+                "zone": info["zone"],
+                "total_hours": f"{hours}س {minutes}د",
+                "total_orders": info["total_orders"],
+                "total_installments": info["total_installments"],
+            })
+        result.sort(key=lambda r: r["driver_name"])
+        return result
 
     def _analyze_image(self, analysis: ImageAnalysis) -> ImageAnalysis:
         with ThreadPoolExecutor(max_workers=3) as executor:

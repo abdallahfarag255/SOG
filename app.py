@@ -113,6 +113,33 @@ def _resolve_selected_date():
     return selected_date, selected_date == today
 
 
+def _add_months(d: date, delta: int) -> date:
+    month_index = d.month - 1 + delta
+    year = d.year + month_index // 12
+    month = month_index % 12 + 1
+    return date(year, month, 1)
+
+
+def _month_bounds(month_start: date) -> tuple:
+    return month_start, _add_months(month_start, 1) - timedelta(days=1)
+
+
+def _resolve_selected_month():
+    today = date.today()
+    min_month = date(MIN_ARCHIVE_DATE.year, MIN_ARCHIVE_DATE.month, 1)
+    max_month = date(today.year, today.month, 1)
+
+    month_param = request.args.get("month", "")
+    try:
+        year_str, month_str = month_param.split("-")
+        selected_month = date(int(year_str), int(month_str), 1)
+    except (ValueError, AttributeError):
+        selected_month = max_month
+
+    selected_month = max(min_month, min(selected_month, max_month))
+    return selected_month, min_month, max_month
+
+
 @app.route("/riders")
 def riders():
     selected_date, is_today = _resolve_selected_date()
@@ -211,6 +238,34 @@ def riders_equation_export():
         content,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@app.route("/riders/month-closing")
+def riders_month_closing():
+    selected_month, min_month, max_month = _resolve_selected_month()
+    month_start, month_end = _month_bounds(selected_month)
+    range_start = max(month_start, MIN_ARCHIVE_DATE)
+    range_end = min(month_end, date.today())
+
+    rows = []
+    if range_start <= range_end:
+        try:
+            rows = rider_service.get_month_closing_report(range_start.isoformat(), range_end.isoformat())
+        except Exception as exc:
+            flash(f"تعذر حساب تقفيلة الشهر: {exc}")
+
+    return render_template(
+        "month_closing.html",
+        rows=rows,
+        month=selected_month.strftime("%Y-%m"),
+        month_display=f"{ArabicDateFormatter.MONTHS[selected_month.month - 1]} {selected_month.year}",
+        prev_month=_add_months(selected_month, -1).strftime("%Y-%m"),
+        next_month=_add_months(selected_month, 1).strftime("%Y-%m"),
+        can_go_prev=selected_month > min_month,
+        can_go_next=selected_month < max_month,
+        is_current_month=selected_month == max_month,
+        app_version=APP_VERSION,
     )
 
 
