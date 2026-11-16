@@ -52,6 +52,9 @@
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; padding: 6px; text-align: center; font-size: 13px; }
         th { background: #f4f4f4; }
+
+        .filter-bar { margin-bottom: 12px; }
+        .filter-bar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -85,7 +88,18 @@
         {% endif %}
     </div>
 
-    <p>العدد: {{ rows|length }}</p>
+    <p>العدد: <span id="visibleCount">{{ rows|length }}</span></p>
+
+    {% if rows %}
+    <div class="filter-bar">
+        <select id="zoneFilter" onchange="filterRows()">
+            <option value="">كل المناطق</option>
+            {% for z in zones %}
+            <option value="{{ z }}">{{ z }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
 
     <div class="table-scroll">
     <table>
@@ -100,9 +114,9 @@
                 <th>Phone Number</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="resultsBody">
             {% for r in rows %}
-            <tr>
+            <tr data-zone="{{ r.zone }}">
                 <td>{{ "%.2f"|format(r.total_installments) }}</td>
                 <td>{{ r.total_orders }}</td>
                 <td>{{ r.total_hours }}</td>
@@ -117,5 +131,21 @@
     </div>
 
     <p style="text-align:center; color:#999; font-size:11px; margin-top:24px;">v{{ app_version }}</p>
+
+    <script>
+        function filterRows() {
+            var zoneEl = document.getElementById('zoneFilter');
+            var zone = zoneEl ? zoneEl.value : '';
+            var rows = document.querySelectorAll('#resultsBody tr');
+            var visible = 0;
+            rows.forEach(function (row) {
+                var show = !zone || row.dataset.zone === zone;
+                row.style.display = show ? '' : 'none';
+                if (show) visible++;
+            });
+            var countEl = document.getElementById('visibleCount');
+            if (countEl) countEl.textContent = visible;
+        }
+    </script>
 </body>
 </html>

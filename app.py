@@ -255,9 +255,12 @@ def riders_month_closing():
         except Exception as exc:
             flash(f"تعذر حساب تقفيلة الشهر: {exc}")
 
+    zones = sorted({r["zone"] for r in rows if r["zone"]})
+
     return render_template(
         "month_closing.html",
         rows=rows,
+        zones=zones,
         month=selected_month.strftime("%Y-%m"),
         month_display=f"{ArabicDateFormatter.MONTHS[selected_month.month - 1]} {selected_month.year}",
         prev_month=_add_months(selected_month, -1).strftime("%Y-%m"),
