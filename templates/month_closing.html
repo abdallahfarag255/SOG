@@ -59,7 +59,6 @@
 </head>
 <body>
     <a class="back-link" href="{{ url_for('riders') }}">&rarr; رجوع لصفحة الركاب</a>
-    <h1 style="text-align:center;">تقفيلة الشهر</h1>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -109,9 +108,9 @@
                 <th>Total Complete Order</th>
                 <th>Total Complete Hours</th>
                 <th>Zone</th>
-                <th>ID Rider</th>
-                <th>Driver Name</th>
                 <th>Phone Number</th>
+                <th>Driver Name</th>
+                <th>ID Rider</th>
             </tr>
         </thead>
         <tbody id="resultsBody">
@@ -121,9 +120,9 @@
                 <td>{{ r.total_orders }}</td>
                 <td>{{ r.total_hours }}</td>
                 <td>{{ r.zone }}</td>
-                <td>{{ r.rider_id }}</td>
-                <td>{{ r.driver_name }}</td>
                 <td>{{ r.phone }}</td>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.rider_id }}</td>
             </tr>
             {% endfor %}
         </tbody>
