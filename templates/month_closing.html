@@ -91,25 +91,25 @@
     <table>
         <thead>
             <tr>
-                <th>Phone Number</th>
-                <th>Driver Name</th>
-                <th>ID Rider</th>
-                <th>Zone</th>
-                <th>Total Complete Hours</th>
-                <th>Total Complete Order</th>
                 <th>Total Installments</th>
+                <th>Total Complete Order</th>
+                <th>Total Complete Hours</th>
+                <th>Zone</th>
+                <th>ID Rider</th>
+                <th>Driver Name</th>
+                <th>Phone Number</th>
             </tr>
         </thead>
         <tbody>
             {% for r in rows %}
             <tr>
-                <td>{{ r.phone }}</td>
-                <td>{{ r.driver_name }}</td>
-                <td>{{ r.rider_id }}</td>
-                <td>{{ r.zone }}</td>
-                <td>{{ r.total_hours }}</td>
-                <td>{{ r.total_orders }}</td>
                 <td>{{ "%.2f"|format(r.total_installments) }}</td>
+                <td>{{ r.total_orders }}</td>
+                <td>{{ r.total_hours }}</td>
+                <td>{{ r.zone }}</td>
+                <td>{{ r.rider_id }}</td>
+                <td>{{ r.driver_name }}</td>
+                <td>{{ r.phone }}</td>
             </tr>
             {% endfor %}
         </tbody>
